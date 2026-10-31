@@ -1,4 +1,4 @@
-"""Fill reference tables (countries, industries). Safe to run on every deploy:
+"""Fill reference tables (countries, industries, cost-of-living baseline). Safe to run on every deploy:
 existing rows are updated in place, nothing is duplicated.
 
     python -m app.seed
@@ -13,6 +13,7 @@ from app.data.countries import COUNTRIES
 from app.data.industries import INDUSTRIES
 from app.db import SessionLocal
 from app.models import Country, Industry
+from app.services.cost_of_living import load_baseline
 
 
 async def seed(session: AsyncSession) -> None:
@@ -36,6 +37,9 @@ async def seed(session: AsyncSession) -> None:
         row.sort_order = order
         session.add(row)
 
+    # Countries must exist before index rows can reference them
+    await session.flush()
+    await load_baseline(session)
     await session.commit()
 
 
