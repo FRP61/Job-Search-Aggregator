@@ -31,3 +31,53 @@ def normalize_title(title: str) -> str:
     title = " ".join(title.split())
     return title
 
+
+# Legal-form endings of company names across the EU. Each starts with a space,
+# so only a whole last word matches: "zalando se" loses " se", "seat" does not.
+# Longer endings come first, so "gmbh & co. kg" is removed whole, not just " kg".
+LEGAL_SUFFIXES = [
+    " gmbh & co. kg",
+    " sp. z o.o.",
+    " s.p.a.",
+    " s.r.o.",
+    " s.r.l.",
+    " gmbh",
+    " ltd.",
+    " ltd",
+    " inc.",
+    " inc",
+    " llc",
+    " plc",
+    " s.a.",
+    " b.v.",
+    " n.v.",
+    " s.l.",
+    " a/s",
+    " ag",
+    " se",
+    " kg",
+    " sa",
+    " bv",
+    " oy",
+    " ab",
+]
+
+
+def normalize_company(company: str | None) -> str:
+    """Make a company name comparable across boards.
+
+    normalize_company("Zalando SE")                    -> "zalando"
+    normalize_company("SAP Deutschland GmbH & Co. KG") -> "sap deutschland"
+    normalize_company("Acme, Inc.")                    -> "acme"
+    normalize_company(None)                            -> ""   (board gave no company)
+    """
+
+    if company is None:
+        return ""
+    company = " ".join(company.lower().split())
+    for suffix in LEGAL_SUFFIXES:
+        company = company.removesuffix(suffix)
+    company = company.strip(" ,")
+    return company
+
+
