@@ -1,9 +1,9 @@
 """EURES, the EU job portal: public employment services of all 27 member states."""
 
-
 from app.integrations.base import fill_computed_fields, NormalizedVacancy
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
+
 
 def parse_eures_job(job: dict, country_code: str):
     """Turn one job from an EURES search response into a NormalizedVacancy.
@@ -29,3 +29,14 @@ def parse_eures_job(job: dict, country_code: str):
 
     return fill_computed_fields(vacancy)
 
+
+def parse_eures_response(data, country_code: str):
+    """Turn an EURES search response into a list of NormalizedVacancy."""
+    vacancies = []
+    for job in data.get("jvs", []):
+        try:
+            vacancy = parse_eures_job(job, country_code)
+        except KeyError:
+            continue
+        vacancies.append(vacancy)
+    return vacancies
