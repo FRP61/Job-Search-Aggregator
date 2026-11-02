@@ -21,4 +21,12 @@ i18n.use(initReactI18next).init({
   initAsync: false,
 })
 
+// Сообщаем браузеру, на каком языке страница (<html lang="uk"> или "en").
+// Это нужно экранным чтецам для правильного произношения и поисковикам.
+function updateHtmlLang(language) {
+  document.documentElement.lang = language
+}
+updateHtmlLang(i18n.language)
+i18n.on('languageChanged', updateHtmlLang)
+
 export default i18n
