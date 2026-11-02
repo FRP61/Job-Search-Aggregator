@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import App from './App'
+import { getStartLanguage } from './i18n'
 
 // Пункт 1: в шапке сайта видно название «Job Search Aggregator».
 // Напиши тест ниже.
@@ -20,4 +21,17 @@ test('после нажатия EN текст на английском', () => 
 	fireEvent.click(enButton)
 
 	expect(screen.getByText('Jobs in Europe with real take-home pay')).toBeInTheDocument()
+})
+test('выбранный язык запоминается в браузере', () => {
+	render(<App />)
+
+	fireEvent.click(screen.getByRole('button', { name: 'EN' }))
+
+	expect(localStorage.getItem('jsa-language')).toBe('en')
+})
+
+test('при следующем открытии сайт берёт сохранённый язык', () => {
+	localStorage.setItem('jsa-language', 'en')
+
+	expect(getStartLanguage()).toBe('en')
 })

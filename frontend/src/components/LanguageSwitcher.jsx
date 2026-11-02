@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
+import { saveLanguage } from '../i18n'
 import styles from './LanguageSwitcher.module.css'
 
 // Языки сайта: code — как язык называется в i18next, label — что написано на кнопке
@@ -12,6 +13,12 @@ const LANGUAGES = [
 function LanguageSwitcher() {
   const { t, i18n } = useTranslation()
 
+  // Человек нажал на язык: переключаем сайт и запоминаем выбор
+  function chooseLanguage(code) {
+    i18n.changeLanguage(code)
+    saveLanguage(code)
+  }
+
   return (
     <div className={styles.switcher} role="group" aria-label={t('header.language')}>
       {LANGUAGES.map((language) => {
@@ -23,7 +30,7 @@ function LanguageSwitcher() {
             type="button"
             className={isActive ? `${styles.button} ${styles.active}` : styles.button}
             aria-pressed={isActive}
-            onClick={() => i18n.changeLanguage(language.code)}
+            onClick={() => chooseLanguage(language.code)}
           >
             {language.label}
           </button>
