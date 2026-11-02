@@ -1,4 +1,4 @@
-from app.services.classify import matches_keyword
+from app.services.classify import classify_industry, matches_keyword
 
 
 def test_whole_word_matches():
@@ -40,3 +40,32 @@ def test_stem_in_ukrainian():
 
 def test_stem_that_no_word_starts_with_does_not_match():
     assert matches_keyword("python developer", "entwickl*") is False
+
+
+def test_python_developer_is_it():
+    assert classify_industry("Senior Python Developer (m/w/d)") == "it"
+
+
+def test_german_stem_finds_finance():
+    assert classify_industry("Buchhalter (m/w/d)") == "finance"
+
+
+def test_polish_stem_finds_logistics():
+    assert classify_industry("Kierowca kat. C") == "logistics"
+
+
+def test_ukrainian_stem_finds_hospitality():
+    assert classify_industry("Кухар") == "hospitality"
+
+
+def test_capital_letters_do_not_matter():
+    assert classify_industry("MECHANICAL ENGINEER") == "engineering"
+
+
+def test_first_industry_in_the_list_wins():
+    # "software" is in "it" and "engineer" is in "engineering"; "it" comes first
+    assert classify_industry("Software Engineer") == "it"
+
+
+def test_no_keyword_gives_other():
+    assert classify_industry("Florist") == "other"

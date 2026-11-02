@@ -1,5 +1,7 @@
 """Guess a vacancy's industry from its title using the keywords in app/data/industries.py."""
 
+from app.data.industries import INDUSTRIES
+from app.services.normalize import normalize_title
 
 def matches_keyword(title: str, keyword: str) -> bool:
     """Does a normalized (lowercase) job title contain this industry keyword?
@@ -27,5 +29,21 @@ def matches_keyword(title: str, keyword: str) -> bool:
     if " " in keyword:
         return keyword in title
     return keyword in words
-    
+
+
+def classify_industry(title: str) -> str:
+    """Guess the industry slug of a job title. The first matching keyword wins,
+    so the order of INDUSTRIES matters. No match gives "other".
+
+    classify_industry("Senior Python Developer (m/w/d)") -> "it"
+    classify_industry("Kierowca kat. C")                 -> "logistics"
+    classify_industry("Florist")                         -> "other"
+    """
+
+    title = normalize_title(title)
+    for industry in INDUSTRIES:
+        for keyword in industry.keywords:
+            if matches_keyword(title, keyword):
+                return industry.slug
+    return "other"
 
