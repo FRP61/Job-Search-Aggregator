@@ -30,7 +30,7 @@ def parse_eures_job(job: dict, country_code: str):
     return fill_computed_fields(vacancy)
 
 
-def parse_eures_response(data, country_code: str):
+def parse_eures_response(data: dict, country_code: str):
     """Turn an EURES search response into a list of NormalizedVacancy."""
     vacancies = []
     for job in data.get("jvs", []):
