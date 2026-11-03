@@ -42,3 +42,11 @@ def annual_min_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float
     annual = to_annual(vacancy.salary_min, vacancy.salary_period)
     eur_amount = to_eur(annual, vacancy.salary_currency, rates)
     return eur_amount
+
+def annual_max_eur(vacancy : , rates: dict[str, float]) -> float | None:
+    if vacancy.salary_currency is None:
+        return None
+
+    annual = to_annual(vacancy.salary_max, vacancy.salary_period)
+    eur_amount = to_eur(annual, vacancy.salary_currency, rates)
+    return eur_amount

@@ -1,4 +1,4 @@
-from app.integrations.base import NormalizedVacancy, annual_min_eur
+from app.integrations.base import NormalizedVacancy, annual_max_eur, annual_min_eur
 
 RATES = {"PLN": 4.0}
 
@@ -46,3 +46,20 @@ def test_salary_without_currency_gives_none():
     # Some boards give an amount but no currency: we can't convert it
     vacancy = make_vacancy(3000, "month", None)
     assert annual_min_eur(vacancy, RATES) is None
+
+
+def test_max_uses_salary_max_not_salary_min():
+    vacancy = make_vacancy(1000, "month", "PLN")
+    vacancy.salary_max = 6000
+    assert annual_max_eur(vacancy, RATES) == 18000
+
+
+def test_max_without_salary_max_gives_none():
+    vacancy = make_vacancy(1000, "month", "PLN")
+    assert annual_max_eur(vacancy, RATES) is None
+
+
+def test_max_without_currency_gives_none():
+    vacancy = make_vacancy(1000, "month", None)
+    vacancy.salary_max = 6000
+    assert annual_max_eur(vacancy, RATES) is None
