@@ -40,3 +40,9 @@ def parse_eures_response(data: dict, country_code: str):
             continue
         vacancies.append(vacancy)
     return vacancies
+
+def eures_location_code(country_code: str):
+    if country_code == "GR":
+        return "el"
+
+    return country_code.lower()
