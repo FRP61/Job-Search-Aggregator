@@ -43,7 +43,7 @@ def annual_min_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float
     eur_amount = to_eur(annual, vacancy.salary_currency, rates)
     return eur_amount
 
-def annual_max_eur(vacancy : , rates: dict[str, float]) -> float | None:
+def annual_max_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float | None:
     if vacancy.salary_currency is None:
         return None
 
