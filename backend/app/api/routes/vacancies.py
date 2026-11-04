@@ -7,17 +7,25 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.integrations.base import MAX_VACANCY_AGE_DAYS
-from app.models import Vacancy, utcnow
+from app.models import Industry, Vacancy, utcnow
 from app.schemas import VacancyDetailOut, VacancyOut, VacancyPageOut
 
 router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 
 
-def _search_filters(countries: list[str] | None, now: datetime) -> list:
-    """Conditions of a search. No countries means every country."""
+def _search_filters(
+    countries: list[str] | None, now: datetime, industry: str | None = None, keyword: str | None = None
+) -> list:
+    """Conditions of a search. Whatever isn't chosen doesn't limit it."""
     filters = [Vacancy.posted_at >= now - timedelta(days=MAX_VACANCY_AGE_DAYS)]
     if countries:
         filters.append(Vacancy.country_code.in_([code.upper() for code in countries]))
+    if industry:
+        filters.append(Vacancy.industry.has(Industry.slug == industry))
+    if keyword and keyword.strip():
+        # autoescape: a % or _ typed by the user is plain text, not a wildcard
+        word = keyword.strip()
+        filters.append(Vacancy.title.icontains(word, autoescape=True) | Vacancy.company.icontains(word, autoescape=True))
     return filters
 
 
@@ -37,6 +45,8 @@ async def _load_countries(session: AsyncSession, rows: list[Vacancy], now: datet
 @router.get("", response_model=VacancyPageOut)
 async def list_vacancies(
     country: list[str] | None = Query(None, description="Repeat for several: ?country=PL&country=GR. Omit for all."),
+    industry: str | None = Query(None, description="Industry slug from /industries."),
+    q: str | None = Query(None, description="Word or phrase in the title or company."),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
@@ -47,7 +57,7 @@ async def list_vacancies(
     """
     now = utcnow()
     # One group per job: its rows differ only by country
-    jobs = select(func.min(Vacancy.id).label("id")).where(*_search_filters(country, now)).group_by(
+    jobs = select(func.min(Vacancy.id).label("id")).where(*_search_filters(country, now, industry, q)).group_by(
         Vacancy.source, Vacancy.external_id
     )
 

@@ -14,11 +14,17 @@ def days_ago(days: int) -> datetime:
     return datetime.now(UTC) - timedelta(days=days)
 
 
-def make_vacancy(external_id: str, country_code: str = "DE", posted_at: datetime | None = None, **fields):
+def make_vacancy(
+    external_id: str,
+    country_code: str = "DE",
+    posted_at: datetime | None = None,
+    title_override: str | None = None,
+    **fields,
+):
     vacancy = NormalizedVacancy(
         source="eures",
         external_id=external_id,
-        title=f"Python Developer {external_id}",
+        title=title_override or f"Python Developer {external_id}",
         url=f"https://eures.example/{external_id}",
         country_code=country_code,
         posted_at=posted_at or days_ago(1),
@@ -238,3 +244,62 @@ async def test_detail_of_a_too_old_vacancy_is_404(session, client):
 
 async def test_detail_id_must_be_a_number(client):
     assert (await client.get(f"{URL}/abc")).status_code == 422
+
+
+async def test_filters_by_industry(session, client):
+    vacancies = [make_vacancy("dev"), make_vacancy("florist", industry="other")]
+    await save_vacancies(session, vacancies, {})
+
+    assert await found_ids(client, industry="it") == ["dev"]
+
+
+async def test_unknown_industry_finds_nothing(session, client):
+    await save_vacancies(session, [make_vacancy("1")], {})
+
+    assert await found_ids(client, industry="no-such-industry") == []
+
+
+async def test_keyword_searches_the_title_in_any_case(session, client):
+    await save_vacancies(session, [make_vacancy("dev"), make_vacancy("cook", title_override="Koch")], {})
+
+    assert await found_ids(client, q="PYTHON") == ["dev"]
+
+
+async def test_keyword_searches_the_company(session, client):
+    await save_vacancies(session, [make_vacancy("a", company="Bosch"), make_vacancy("b", company="Volvo")], {})
+
+    assert await found_ids(client, q="bosch") == ["a"]
+
+
+async def test_percent_sign_is_plain_text_not_a_wildcard(session, client):
+    await save_vacancies(session, [make_vacancy("1")], {})
+
+    assert await found_ids(client, q="%") == []
+
+
+async def test_blank_keyword_is_ignored(session, client):
+    await save_vacancies(session, [make_vacancy("1")], {})
+
+    assert await found_ids(client, q="   ") == ["1"]
+
+
+async def test_filters_work_together_and_total_follows(session, client):
+    vacancies = [
+        make_vacancy("pl-dev", "PL"),
+        make_vacancy("de-dev", "DE"),
+        make_vacancy("pl-other", "PL", title_override="Koch"),
+    ]
+    await save_vacancies(session, vacancies, {})
+
+    data = (await client.get(URL, params={"country": "PL", "industry": "it", "q": "python"})).json()
+
+    assert data["total"] == 1
+    assert data["items"][0]["countries"] == ["PL"]
+
+
+async def test_job_found_by_a_country_filter_still_lists_all_countries_with_a_keyword(session, client):
+    await save_vacancies(session, [make_vacancy("multi", code) for code in ("AT", "IT")], {})
+
+    data = (await client.get(URL, params={"country": "AT", "q": "python"})).json()
+
+    assert data["items"][0]["countries"] == ["AT", "IT"]
