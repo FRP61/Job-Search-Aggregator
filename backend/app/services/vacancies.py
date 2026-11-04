@@ -1,0 +1,346 @@
+"""Save vacancies from job boards into the database without creating duplicates."""
+
+import asyncio
+import hashlib
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime, timedelta
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.integrations.base import (
+    MAX_VACANCY_AGE_DAYS,
+    REQUEST_ERRORS,
+    NormalizedVacancy,
+    annual_max_eur,
+    annual_min_eur,
+)
+from app.integrations.bundesagentur import fetch_ba_jobs
+from app.integrations.cv import fetch_cv_ee, fetch_cv_lt, fetch_cv_lv
+from app.integrations.ecb import get_exchange_rates
+from app.integrations.esco import apply_occupation_industries
+from app.integrations.eures import EURES_MAX_PAGES, fetch_eures_country
+from app.integrations.jobtech import fetch_jt_jobs
+from app.integrations.justjoin import fetch_jj_jobs
+from app.models import Country, Industry, Vacancy, utcnow
+
+
+# A copy on another board appears soon after the original. Further apart than
+# this, the same title at the same company is more likely another branch's job.
+COPY_MAX_DAYS_APART = 3
+SAVE_BATCH_SIZE = 1000
+# Outside this range a yearly salary is a mistake in the source, like a monthly amount marked as hourly
+MIN_PLAUSIBLE_ANNUAL_EUR = 1_000
+MAX_PLAUSIBLE_ANNUAL_EUR = 1_000_000
+
+# Sources with one download for the whole board; EURES goes country by country
+SOURCES = {
+    "bundesagentur": fetch_ba_jobs,
+    "cv_ee": fetch_cv_ee,
+    "cv_lt": fetch_cv_lt,
+    "cv_lv": fetch_cv_lv,
+    "jobtech": fetch_jt_jobs,
+    "justjoin": fetch_jj_jobs,
+}
+
+
+@dataclass
+class SaveResult:
+    inserted: int = 0
+    updated: int = 0
+    merged: int = 0
+    skipped: int = 0
+    failed: list[str] = field(default_factory=list)  # countries or sources that didn't answer
+
+    def add(self, other: "SaveResult") -> None:
+        """Add the counts of one saved batch to this total."""
+        self.inserted += other.inserted
+        self.updated += other.updated
+        self.merged += other.merged
+        self.skipped += other.skipped
+        self.failed.extend(other.failed)
+
+
+def _plausible_salary(annual_eur: float | None) -> float | None:
+    """The yearly salary, or None if it can't be real. The board's own figures stay in the row."""
+    if annual_eur is None or not MIN_PLAUSIBLE_ANNUAL_EUR <= annual_eur <= MAX_PLAUSIBLE_ANNUAL_EUR:
+        return None
+    return annual_eur
+
+
+def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | None, rates: dict[str, float]) -> None:
+    """Copy a vacancy's data into a table row, cutting text to the column sizes."""
+    row.title = vacancy.title[:500]
+    row.company = vacancy.company[:255] if vacancy.company else None
+    row.country_code = vacancy.country_code
+    row.industry_id = industry_id
+    row.city = vacancy.city[:255] if vacancy.city else None
+    row.location = vacancy.location[:500] if vacancy.location else None
+    row.description = vacancy.description
+    row.url = vacancy.url[:2000]
+    row.remote = vacancy.remote
+    row.salary_min = vacancy.salary_min
+    row.salary_max = vacancy.salary_max
+    row.salary_currency = vacancy.salary_currency
+    row.salary_period = vacancy.salary_period
+    row.salary_annual_min_eur = _plausible_salary(annual_min_eur(vacancy, rates))
+    row.salary_annual_max_eur = _plausible_salary(annual_max_eur(vacancy, rates))
+    row.posted_at = vacancy.posted_at
+    row.loose_fingerprint = vacancy.loose_fingerprint
+    row.fetched_at = utcnow()
+
+
+async def _load_industry_ids(session: AsyncSession) -> dict[str, int]:
+    """Industry slug -> its id in the database."""
+    industries = await session.scalars(select(Industry))
+    return {industry.slug: industry.id for industry in industries}
+
+
+async def _load_existing_rows(session: AsyncSession, vacancies: list[NormalizedVacancy]) -> list[Vacancy]:
+    """Rows that could be the same job as one of these vacancies, in one query."""
+    rows = await session.scalars(
+        select(Vacancy).where(
+            Vacancy.external_id.in_([vacancy.external_id for vacancy in vacancies])
+            | Vacancy.fingerprint.in_([vacancy.fingerprint for vacancy in vacancies])
+            | Vacancy.fingerprint.in_([_fingerprint_with_text(vacancy) for vacancy in vacancies])
+            | Vacancy.loose_fingerprint.in_([v.loose_fingerprint for v in vacancies if v.loose_fingerprint])
+        )
+    )
+    return list(rows)
+
+
+def _row_key(source: str, external_id: str, country_code: str) -> tuple[str, str, str]:
+    """A row's identity: one job can have a separate row for each country."""
+    return (source, external_id, country_code)
+
+
+def _published_close_together(row: Vacancy, vacancy: NormalizedVacancy) -> bool:
+    """True if both were published within COPY_MAX_DAYS_APART days of each other."""
+    if row.posted_at is None:
+        return False
+    return abs(_as_utc(row.posted_at) - vacancy.posted_at) <= timedelta(days=COPY_MAX_DAYS_APART)
+
+
+def _as_utc(moment: datetime) -> datetime:
+    """SQLite gives dates back without a time zone, Postgres with one."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _is_repost_of_expired_row(row: Vacancy, vacancy: NormalizedVacancy, now: datetime) -> bool:
+    """True if this fresh vacancy has the same fingerprint as a row the search no longer shows.
+
+    Skipping it as a duplicate would hide a live job behind an expired row.
+    """
+    if row.fingerprint != vacancy.fingerprint or vacancy.is_too_old(now):
+        return False
+    return row.posted_at is None or now - _as_utc(row.posted_at) > timedelta(days=MAX_VACANCY_AGE_DAYS)
+
+
+def _clean_text(text: str | None) -> str:
+    """The text without differences in spaces and line breaks."""
+    return " ".join((text or "").split())
+
+
+def _fingerprint_with_text(vacancy: NormalizedVacancy) -> str:
+    """The fingerprint of a job that shares its title, company and place with another job on its board."""
+    raw = f"{vacancy.fingerprint}|{_clean_text(vacancy.description)}"
+    return hashlib.sha1(raw.encode()).hexdigest()
+
+
+def _is_another_job_on_the_same_board(twin: Vacancy, vacancy: NormalizedVacancy) -> bool:
+    """True if a row with the same fingerprint is another job, because its text is different.
+
+    A staffing agency can post dozens of jobs with one title in one region: real
+    data had 67 on one fingerprint. A missing text proves nothing, so it doesn't count.
+    """
+    if twin.source != vacancy.source or not twin.description or not vacancy.description:
+        return False
+    return _clean_text(twin.description) != _clean_text(vacancy.description)
+
+
+def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
+    """The same job on another board, where one of the two has no city to compare.
+
+    A row takes only one copy from each board. Otherwise a chain posting one title
+    in many branches hides them all behind one card: a real run gave 132 links on a row.
+    """
+    for row in rows:
+        if (
+            row.source == vacancy.source
+            or (row.city is not None and vacancy.city is not None)
+            or not _published_close_together(row, vacancy)
+        ):
+            continue
+        links = row.other_sources or []
+        if {"source": vacancy.source, "url": vacancy.url} in links:
+            return row
+        if all(link["source"] != vacancy.source for link in links):
+            return row
+    return None
+
+
+def _add_other_source(twin: Vacancy, vacancy: NormalizedVacancy) -> bool:
+    """Link a vacancy from another board to its twin. False if already linked."""
+    link = {"source": vacancy.source, "url": vacancy.url}
+    links = twin.other_sources or []
+    if link in links:
+        return False
+    # A new list, because SQLAlchemy doesn't notice changes inside a JSON value
+    twin.other_sources = [*links, link]
+    return True
+
+
+async def save_vacancies(
+    session: AsyncSession, vacancies: list[NormalizedVacancy], rates: dict[str, float]
+) -> SaveResult:
+    """Save one batch of vacancies. `rates` converts salaries to euros, see to_eur.
+
+    Same source, id and country already saved -> update that row (updated)
+    Same fingerprint from another source      -> add a link to other_sources (merged)
+    Another source, no city to compare, close
+    publication dates                         -> add a link to other_sources (merged)
+    Same fingerprint as an expired row        -> the row becomes this repost (updated)
+    Same fingerprint and source, another text -> another job: compared by its text instead,
+                                                 then the same rules apply
+    Same fingerprint, same source or link     -> nothing new (skipped)
+    Otherwise                                 -> new row (inserted)
+    """
+    result = SaveResult()
+    if not vacancies:
+        return result
+    now = utcnow()
+
+    industry_ids = await _load_industry_ids(session)
+    rows = await _load_existing_rows(session, vacancies)
+    by_key = {_row_key(row.source, row.external_id, row.country_code): row for row in rows}
+    by_fingerprint = {row.fingerprint: row for row in rows}
+    by_loose_fingerprint: dict[str, list[Vacancy]] = {}
+    for row in rows:
+        if row.loose_fingerprint:
+            by_loose_fingerprint.setdefault(row.loose_fingerprint, []).append(row)
+
+    for vacancy in vacancies:
+        industry_id = industry_ids.get(vacancy.industry)
+        key = _row_key(vacancy.source, vacancy.external_id, vacancy.country_code)
+        row = by_key.get(key)
+        twin = by_fingerprint.get(vacancy.fingerprint)
+        if (
+            row is None
+            and twin is not None
+            and not _is_repost_of_expired_row(twin, vacancy, now)
+            and _is_another_job_on_the_same_board(twin, vacancy)
+        ):
+            # A copy, not a change: the caller's vacancy keeps its usual fingerprint
+            vacancy = replace(vacancy, fingerprint=_fingerprint_with_text(vacancy))
+            twin = by_fingerprint.get(vacancy.fingerprint)
+        if row is None and twin is None:
+            twin = _find_twin_without_city(by_loose_fingerprint.get(vacancy.loose_fingerprint, []), vacancy)
+
+        if row is not None:
+            # A changed title can make the fingerprint equal to another row's.
+            # The column is unique, so in that case the row keeps its old one.
+            if twin is None:
+                del by_fingerprint[row.fingerprint]
+                row.fingerprint = vacancy.fingerprint
+                by_fingerprint[row.fingerprint] = row
+                # Write it now: updates are sent in id order at the end, so a row with
+                # a lower id taking this row's old fingerprint would break uniqueness.
+                await session.flush()
+            _copy_fields(row, vacancy, industry_id, rates)
+            result.updated += 1
+        elif twin is None:
+            row = Vacancy(source=vacancy.source, external_id=vacancy.external_id, fingerprint=vacancy.fingerprint)
+            _copy_fields(row, vacancy, industry_id, rates)
+            session.add(row)
+            by_key[key] = row
+            by_fingerprint[row.fingerprint] = row
+            if row.loose_fingerprint:
+                by_loose_fingerprint.setdefault(row.loose_fingerprint, []).append(row)
+            result.inserted += 1
+        elif _is_repost_of_expired_row(twin, vacancy, now):
+            del by_key[_row_key(twin.source, twin.external_id, twin.country_code)]
+            twin.source = vacancy.source
+            twin.external_id = vacancy.external_id
+            by_key[key] = twin
+            _copy_fields(twin, vacancy, industry_id, rates)
+            result.updated += 1
+        elif twin.source == vacancy.source:
+            result.skipped += 1
+        elif _add_other_source(twin, vacancy):
+            result.merged += 1
+        else:
+            result.skipped += 1
+
+    await session.commit()
+    return result
+
+
+async def save_in_batches(
+    session: AsyncSession, vacancies: list[NormalizedVacancy], rates: dict[str, float]
+) -> SaveResult:
+    """Save a long list in parts: one query can't take tens of thousands of values."""
+    total = SaveResult()
+    for start in range(0, len(vacancies), SAVE_BATCH_SIZE):
+        total.add(await save_vacancies(session, vacancies[start : start + SAVE_BATCH_SIZE], rates))
+    return total
+
+
+async def refresh_eures(
+    session: AsyncSession,
+    client: httpx.AsyncClient,
+    country_codes: list[str] | None = None,
+    max_pages: int = EURES_MAX_PAGES,
+    pause_seconds: float = 0.2,
+) -> SaveResult:
+    """Download EURES jobs country by country and save them. No codes means all active countries.
+
+    A country whose request fails is noted in failed and the rest carry on.
+    Rates are empty because EURES search results have no salaries.
+    """
+    query = select(Country.code).where(Country.is_active).order_by(Country.code)
+    if country_codes is not None:
+        query = query.where(Country.code.in_(country_codes))
+    codes = (await session.scalars(query)).all()
+
+    total = SaveResult()
+    for index, code in enumerate(codes):
+        if index > 0:
+            await asyncio.sleep(pause_seconds)
+        try:
+            vacancies = await fetch_eures_country(client, code, max_pages, pause_seconds)
+        except REQUEST_ERRORS:
+            total.failed.append(code)
+            continue
+        await apply_occupation_industries(session, client, vacancies, pause_seconds)
+        total.add(await save_in_batches(session, vacancies, {}))
+    return total
+
+
+async def refresh_source(
+    session: AsyncSession,
+    client: httpx.AsyncClient,
+    name: str,
+    max_pages: int | None = None,
+    rates: dict[str, float] | None = None,
+) -> SaveResult:
+    """Download one source from SOURCES and save its jobs. A failure is noted in failed."""
+    fetch = SOURCES[name]
+    if rates is None:
+        rates = await get_exchange_rates(session, client)
+    try:
+        vacancies = await (fetch(client) if max_pages is None else fetch(client, max_pages))
+    except REQUEST_ERRORS:
+        return SaveResult(failed=[name])
+    return await save_in_batches(session, vacancies, rates)
+
+
+async def refresh_all(session: AsyncSession, client: httpx.AsyncClient) -> SaveResult:
+    """Refresh every source. National boards go before EURES because they give the
+    city, so the copy from EURES becomes a link on a row that knows it."""
+    total = SaveResult()
+    rates = await get_exchange_rates(session, client)
+    for name in SOURCES:
+        total.add(await refresh_source(session, client, name, rates=rates))
+    total.add(await refresh_eures(session, client))
+    return total

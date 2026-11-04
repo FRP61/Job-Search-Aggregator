@@ -1,7 +1,9 @@
+import json
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,7 +13,8 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     database_url: str = "postgresql+asyncpg://jobs:jobs@localhost:5432/jobs"
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # NoDecode: without it the value is read as JSON first, and a comma-separated list crashes
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("database_url")
     @classmethod
@@ -29,10 +32,12 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value):
-        # Allows CORS_ORIGINS=https://a.com,https://b.com in .env
-        if isinstance(value, str) and not value.startswith("["):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+        # Allows CORS_ORIGINS=https://a.com,https://b.com in .env, or a JSON list
+        if not isinstance(value, str):
+            return value
+        if value.startswith("["):
+            return json.loads(value)
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
 
 
 @lru_cache

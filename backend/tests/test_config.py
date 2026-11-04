@@ -19,3 +19,18 @@ def test_database_url_gets_async_driver(given, expected):
 def test_cors_origins_from_comma_separated_string():
     settings = Settings(cors_origins="https://a.com, https://b.com")
     assert settings.cors_origins == ["https://a.com", "https://b.com"]
+
+
+def test_comma_separated_origins_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:3000, http://localhost:5173")
+    assert Settings(_env_file=None).cors_origins == ["http://localhost:3000", "http://localhost:5173"]
+
+
+def test_json_list_of_origins_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CORS_ORIGINS", '["https://a.com"]')
+    assert Settings(_env_file=None).cors_origins == ["https://a.com"]
+
+
+def test_example_env_file_can_be_read():
+    settings = Settings(_env_file=".env.example")
+    assert settings.cors_origins == ["http://localhost:3000", "http://localhost:5173"]

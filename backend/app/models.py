@@ -69,7 +69,8 @@ class CostOfLivingIndex(Base):
 class Vacancy(Base):
     __tablename__ = "vacancies"
     __table_args__ = (
-        UniqueConstraint("source", "external_id", name="uq_vacancy_source_external"),
+        # EURES lists one job under several countries, and each country gets its own row
+        UniqueConstraint("source", "external_id", "country_code", name="uq_vacancy_source_external_country"),
         Index("ix_vacancy_search", "country_code", "industry_id", "posted_at"),
     )
 
@@ -78,6 +79,8 @@ class Vacancy(Base):
     external_id: Mapped[str] = mapped_column(String(255))
     # sha1 of normalized title/company/country/city, used for cross-source dedup
     fingerprint: Mapped[str] = mapped_column(String(40), unique=True)
+    # The same without the city, to find a job on a board that doesn't give one
+    loose_fingerprint: Mapped[str | None] = mapped_column(String(40), index=True)
 
     title: Mapped[str] = mapped_column(String(500))
     company: Mapped[str | None] = mapped_column(String(255))
