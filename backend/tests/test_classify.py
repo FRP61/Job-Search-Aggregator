@@ -1,3 +1,5 @@
+import pytest
+
 from app.services.classify import classify_industry, matches_keyword
 
 
@@ -69,3 +71,65 @@ def test_first_industry_in_the_list_wins():
 
 def test_no_keyword_gives_other():
     assert classify_industry("Florist") == "other"
+
+
+def test_word_next_to_punctuation_matches():
+    assert matches_keyword("entwickler (python), berlin", "python") is True
+
+
+def test_stem_after_a_hyphen_matches():
+    assert matches_keyword("java-entwickler", "entwickl*") is True
+
+
+def test_stem_after_a_slash_matches():
+    assert matches_keyword("koch/entwickler", "entwickl*") is True
+
+
+def test_stem_inside_a_word_does_not_match():
+    assert matches_keyword("softwareentwickler", "entwickl*") is False
+
+
+def test_part_matches_inside_a_compound_word():
+    assert matches_keyword("bilanzbuchhalter", "*buchhalt*") is True
+
+
+def test_part_that_is_absent_does_not_match():
+    assert matches_keyword("koch", "*buchhalt*") is False
+
+
+def test_phrase_hidden_inside_a_longer_word_does_not_match():
+    assert matches_keyword("audit support specialist", "it support") is False
+    assert matches_keyword("credit support officer", "it support") is False
+
+
+def test_hyphenated_keyword_still_matches():
+    assert matches_keyword("senior full-stack engineer", "full-stack") is True
+
+
+@pytest.mark.parametrize(
+    ("title", "industry"),
+    [
+        ("Java-Entwickler", "it"),
+        ("Softwareentwickler (m/w/d)", "it"),
+        ("IT-Systemadministrator/in", "it"),
+        ("ERP-Berater/in - ERP-Consultant", "it"),
+        ("Bilanzbuchhalter/in", "finance"),
+        ("Audit Support Specialist", "finance"),
+        ("Physiotherapeut/in", "healthcare"),
+        ("Heilerziehungspfleger/in", "healthcare"),
+        ("Innendienstverkäufer (m/w/d)", "sales"),
+        ("Fachlagerist/in", "logistics"),
+        ("Berufskraftfahrer/in", "logistics"),
+        ("Industriemechaniker/in", "manufacturing"),
+        ("Maschinenführer (m/w/d)", "manufacturing"),
+        ("Anlagenmechaniker/in - Sanitär", "construction"),
+        ("Personalsachbearbeiter/in", "hr"),
+    ],
+)
+def test_german_titles(title, industry):
+    assert classify_industry(title) == industry
+
+
+@pytest.mark.parametrize("title", ["Erfahrener Mitarbeiter (m/w/d)", "Fahrzeugpfleger/in"])
+def test_look_alike_words_do_not_match(title):
+    assert classify_industry(title) == "other"

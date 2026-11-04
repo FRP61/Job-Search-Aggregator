@@ -212,3 +212,9 @@ async def test_refresh_reports_a_page_that_is_not_json_as_a_failure(session):
         result = await refresh_bundesagentur(session, client)
 
     assert result.failed_countries == ["DE"]
+
+
+def test_training_place_without_a_title_uses_the_occupation():
+    broken = job("training", hauptberuf="Zahnmedizinische/r Fachangestellte/r")
+    del broken["stellenangebotsTitel"]
+    assert parse_ba_job(broken).title == "Zahnmedizinische/r Fachangestellte/r"

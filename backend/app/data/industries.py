@@ -28,6 +28,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "golang", "php", "react", "qa engineer", "test engineer", "tester", "sysadmin",
             "system administrator", "cloud", "cyber security", "cybersecurity", "it support",
             "entwickl*", "informatik*", "programist*", "розроб*", "програміст*", "тестувальн*",
+            "*entwickler*", "*informatiker*", "*programmierer*", "it-*", "erp", "erp-*", "anwendungsberater*", "*systemadministrator*",
         ),
     ),
     IndustryDef(
@@ -44,6 +45,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "accountant", "accounting", "finance", "financial", "controller", "controlling", "auditor",
             "audit", "bookkeeper", "payroll", "tax advisor", "buchhalt*", "steuer*", "księgow*",
             "бухгалтер*", "фінанс*", "аудитор*",
+            "*buchhalt*", "bankkauf*", "kreditsachbearbeit*", "versicherung*", "versicherungskauf*", "krankenversicherung*",
         ),
     ),
     IndustryDef(
@@ -52,6 +54,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "nurse", "nursing", "doctor", "physician", "pharmacist", "dentist", "caregiver", "carer",
             "physiotherapist", "medical", "pfleg*", "arzt", "ärzt*", "pielęgniar*", "lekarz*",
             "лікар*", "медсестр*", "фармацевт*",
+            "altenpfleg*", "krankenpfleg*", "heilerziehungspfleg*", "gesundheitspfleg*", "medizinische*", "zahnmedizin*", "physiotherap*", "*therapeut*", "arzthelf*",
         ),
     ),
     IndustryDef(
@@ -59,6 +62,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
         (
             "sales", "account executive", "account manager", "business development", "key account",
             "vertrieb*", "verkauf*", "sprzeda*", "продаж*",
+            "*verkäufer*", "*kundenberater*", "bezirksleit*",
         ),
     ),
     IndustryDef(
@@ -89,6 +93,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "driver", "warehouse", "logistics", "forklift", "courier", "delivery", "supply chain",
             "dispatcher", "lager*", "fahrer*", "kierowc*", "magazyn*", "водій*", "водія", "склад*",
             "логіст*", "кур'єр*",
+            "*lagerist*", "*kraftfahrer*", "*staplerfahrer*", "lkw*", "*spedition*", "*kommissionier*", "*logistik*", "warenannehm*",
         ),
     ),
     IndustryDef(
@@ -97,6 +102,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "construction", "electrician", "plumber", "carpenter", "welder", "bricklayer", "roofer",
             "painter", "site manager", "bau*", "elektriker*", "schweiß*", "budow*", "elektryk*",
             "spawacz*", "будів*", "електрик*", "зварювальн*", "сантехнік*",
+            "anlagenmechaniker*", "*elektriker*", "*elektroinstallateur*",
         ),
     ),
     IndustryDef(
@@ -104,6 +110,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
         (
             "production", "manufacturing", "machine operator", "assembly", "cnc", "factory",
             "produktion*", "produkcj*", "виробни*", "оператор*",
+            "*mechaniker*", "*mechatroniker*", "*anlagenführer*", "*maschinenführer*", "*zerspanung*", "cnc*", "cnc-*", "lackierer*", "*schlosser*", "*elektroniker*", "instandhaltung*",
         ),
     ),
     IndustryDef(
@@ -120,6 +127,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
             "administrative", "administrator", "office manager", "office assistant", "receptionist",
             "secretary", "assistant", "data entry", "sachbearbeit*", "büro*", "sekretar*",
             "адміністратор*", "офіс-менеджер*", "секретар*",
+            "sachbearbeit*", "managementassistent*", "verwaltungsfach*", "industriekauf*", "bürokauf*",
         ),
     ),
     IndustryDef(
@@ -127,6 +135,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
         (
             "hr", "human resources", "recruiter", "recruiting", "recruitment", "talent acquisition",
             "people partner", "personalreferent*", "rekrut*", "рекрутер*", "кадр*",
+            "personalsachbearbeit*", "personalreferent*", "personalberater*",
         ),
     ),
     IndustryDef(
@@ -156,6 +165,7 @@ INDUSTRIES: tuple[IndustryDef, ...] = (
         (
             "retail", "store manager", "shop assistant", "cashier", "sales associate", "merchandiser",
             "verkäufer*", "kassier*", "kasjer*", "продав*", "касир*", "мерчендайзер*",
+            "*einzelhandel*",
         ),
     ),
     IndustryDef("other", "Other", "Інше", "other-general-jobs", ()),

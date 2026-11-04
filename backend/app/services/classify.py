@@ -1,34 +1,34 @@
 """Guess a vacancy's industry from its title using the keywords in app/data/industries.py."""
 
+import re
+
 from app.data.industries import INDUSTRIES, ISCO_TO_INDUSTRY
 from app.services.normalize import normalize_title
 
 def matches_keyword(title: str, keyword: str) -> bool:
     """Does a normalized (lowercase) job title contain this industry keyword?
 
-    Three kinds of keywords:
+    Four kinds of keywords:
       "python"          one word: must be a whole word of the title
-      "data scientist"  phrase (has a space): must appear in the title as is
+      "data scientist"  phrase (has a space): must appear as whole words
       "entwickl*"       stem (ends with *): some word of the title starts with it
+      "*buchhalt*"      part (* on both sides): anywhere, for German compound words
+
+    A word ends at anything that isn't a letter or digit, so "java-entwickler"
+    and "(python)," count, and "audit support" doesn't contain "it support".
 
     matches_keyword("senior python developer", "python")         -> True
     matches_keyword("three engineers", "hr")                     -> False  ("hr" hides inside "three")
     matches_keyword("senior data scientist", "data scientist")   -> True
-    matches_keyword("java entwickler", "entwickl*")              -> True
+    matches_keyword("java-entwickler", "entwickl*")              -> True
+    matches_keyword("bilanzbuchhalter", "*buchhalt*")            -> True
     """
 
-    words = title.split()
-
+    if keyword.startswith("*") and keyword.endswith("*"):
+        return keyword.strip("*") in title
     if keyword.endswith("*"):
-        stem = keyword.removesuffix("*")
-        for word in words:
-            if word.startswith(stem):
-                return True
-        return False
-
-    if " " in keyword:
-        return keyword in title
-    return keyword in words
+        return re.search(r"(?<!\w)" + re.escape(keyword.removesuffix("*")), title) is not None
+    return re.search(r"(?<!\w)" + re.escape(keyword) + r"(?!\w)", title) is not None
 
 
 def classify_industry(title: str) -> str:

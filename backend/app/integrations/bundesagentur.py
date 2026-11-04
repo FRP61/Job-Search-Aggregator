@@ -29,9 +29,14 @@ def ba_posted_at(job: dict) -> datetime:
     return datetime.fromisoformat(job["datumErsteVeroeffentlichung"]).replace(tzinfo=UTC)
 
 
+def ba_title(job: dict) -> str:
+    """Training places can come without a title, then the occupation names the job."""
+    return job.get("stellenangebotsTitel") or job["hauptberuf"]
+
+
 def ba_industry(job: dict) -> str:
     """Guess from the title, then from the occupation if the title says nothing."""
-    industry = classify_industry(job["stellenangebotsTitel"])
+    industry = classify_industry(ba_title(job))
     if industry == "other" and job.get("hauptberuf"):
         return classify_industry(job["hauptberuf"])
     return industry
@@ -41,7 +46,7 @@ def ba_match_title(job: dict) -> str | None:
     """EURES shows the jobs it gets from this board as "title (occupation)"."""
     if not job.get("hauptberuf"):
         return None
-    return f"{job['stellenangebotsTitel']} ({job['hauptberuf']})"
+    return f"{ba_title(job)} ({job['hauptberuf']})"
 
 
 def parse_ba_job(job: dict) -> NormalizedVacancy:
@@ -49,7 +54,7 @@ def parse_ba_job(job: dict) -> NormalizedVacancy:
     vacancy = NormalizedVacancy(
         source="bundesagentur",
         external_id=job["referenznummer"],
-        title=job["stellenangebotsTitel"],
+        title=ba_title(job),
         url=BA_JOB_URL.format(job_id=job["referenznummer"]),
         country_code="DE",
         posted_at=ba_posted_at(job),
