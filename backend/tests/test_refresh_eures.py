@@ -8,8 +8,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from app.integrations.bundesagentur import BA_SEARCH_URL
+from app.integrations.cv import CV_EE, CV_LT, CV_LV
+from app.integrations.ecb import ECB_RATES_URL
 from app.integrations.esco import ESCO_OCCUPATION_URL
 from app.integrations.eures import EURES_SEARCH_URL
+from app.integrations.jobtech import JT_SEARCH_URL
+from app.integrations.justjoin import JJ_SEARCH_URL
 from app.models import ApiCache, Vacancy
 from app.services.vacancies import refresh_all, refresh_eures
 
@@ -40,6 +44,15 @@ def pauses(monkeypatch):
 
     monkeypatch.setattr("app.services.vacancies.asyncio.sleep", fake_sleep)
     return recorded
+
+
+def mock_small_boards() -> None:
+    """Every other outside service, answering with nothing to save."""
+    respx.get(ECB_RATES_URL).mock(return_value=httpx.Response(200, text="<a/>"))
+    for site in (CV_EE, CV_LT, CV_LV):
+        respx.get(site.search_url).mock(return_value=httpx.Response(200, json={"vacancies": []}))
+    respx.get(JJ_SEARCH_URL).mock(return_value=httpx.Response(200, json={"data": []}))
+    respx.get(JT_SEARCH_URL).mock(return_value=httpx.Response(200, json={"hits": []}))
 
 
 async def saved_countries(session) -> list[str]:
@@ -168,6 +181,7 @@ async def test_refresh_all_reads_national_boards_before_eures(session):
         return httpx.Response(200, json={"ergebnisliste": []})
 
     respx.post(EURES_SEARCH_URL).mock(side_effect=eures)
+    mock_small_boards()
     respx.get(BA_SEARCH_URL).mock(side_effect=board)
 
     async with httpx.AsyncClient() as client:
@@ -182,6 +196,7 @@ async def test_refresh_all_reads_national_boards_before_eures(session):
 @respx.mock
 async def test_refresh_all_carries_on_when_a_board_fails(session):
     respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+    mock_small_boards()
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(503))
 
     async with httpx.AsyncClient() as client:

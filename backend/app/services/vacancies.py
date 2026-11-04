@@ -16,8 +16,12 @@ from app.integrations.base import (
     annual_min_eur,
 )
 from app.integrations.bundesagentur import fetch_ba_jobs
+from app.integrations.cv import fetch_cv_ee, fetch_cv_lt, fetch_cv_lv
+from app.integrations.ecb import get_exchange_rates
 from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import EURES_MAX_PAGES, fetch_eures_country
+from app.integrations.jobtech import fetch_jt_jobs
+from app.integrations.justjoin import fetch_jj_jobs
 from app.models import Country, Industry, Vacancy, utcnow
 
 
@@ -27,7 +31,14 @@ COPY_MAX_DAYS_APART = 3
 SAVE_BATCH_SIZE = 1000
 
 # Sources with one download for the whole board; EURES goes country by country
-SOURCES = {"bundesagentur": fetch_ba_jobs}
+SOURCES = {
+    "bundesagentur": fetch_ba_jobs,
+    "cv_ee": fetch_cv_ee,
+    "cv_lt": fetch_cv_lt,
+    "cv_lv": fetch_cv_lv,
+    "jobtech": fetch_jt_jobs,
+    "justjoin": fetch_jj_jobs,
+}
 
 
 @dataclass
@@ -261,18 +272,21 @@ async def refresh_source(
 ) -> SaveResult:
     """Download one source from SOURCES and save its jobs. A failure is noted in failed."""
     fetch = SOURCES[name]
+    if rates is None:
+        rates = await get_exchange_rates(session, client)
     try:
         vacancies = await (fetch(client) if max_pages is None else fetch(client, max_pages))
     except REQUEST_ERRORS:
         return SaveResult(failed=[name])
-    return await save_in_batches(session, vacancies, rates or {})
+    return await save_in_batches(session, vacancies, rates)
 
 
 async def refresh_all(session: AsyncSession, client: httpx.AsyncClient) -> SaveResult:
     """Refresh every source. National boards go before EURES because they give the
     city, so the copy from EURES becomes a link on a row that knows it."""
     total = SaveResult()
+    rates = await get_exchange_rates(session, client)
     for name in SOURCES:
-        total.add(await refresh_source(session, client, name))
+        total.add(await refresh_source(session, client, name, rates=rates))
     total.add(await refresh_eures(session, client))
     return total

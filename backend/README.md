@@ -44,7 +44,7 @@ app/
   schemas.py       формати відповідей API (Pydantic)
   seed.py          заповнення довідників
   data/            довідники: 27 країн ЄС, 19 галузей
-  integrations/    джерела вакансій: EURES, Bundesagentur, довідник ESCO
+  integrations/    джерела вакансій (EURES, Bundesagentur, cv.ee/lv/lt, justjoin.it, JobTech), ESCO, курси ЄЦБ
   services/        розрахунки, класифікація, збереження вакансій, кеш
   api/routes/      ендпоінти
 alembic/versions/  міграції схеми БД
@@ -112,6 +112,9 @@ python -m app.cli refresh-all                                   # усі дже�
 python -m app.cli refresh-source bundesagentur --max-pages 2    # одне джерело
 python -m app.cli refresh-vacancies --country PL GR             # EURES за країнами
 ```
+
+Назви джерел: `bundesagentur`, `cv_ee`, `cv_lv`, `cv_lt`, `justjoin`, `jobtech`. Зарплати
+перераховуються в євро за курсами ЄЦБ, які зберігаються в кеші на день.
 
 Сайти віддають обмежену кількість сторінок (EURES 200 на країну, Bundesagentur 100), тож один
 запуск не бачить усіх вакансій великих країн. Щоденні запуски накопичують їх за 30 днів.

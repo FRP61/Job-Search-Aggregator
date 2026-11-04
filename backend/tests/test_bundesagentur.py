@@ -172,7 +172,7 @@ async def test_refresh_saves_the_jobs(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, json=data))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_source(session, client, "bundesagentur")
+        result = await refresh_source(session, client, "bundesagentur", rates={})
 
     rows = list(await session.scalars(select(Vacancy)))
     assert result.inserted == 1  # same title and company, no city: the second is a duplicate
@@ -185,7 +185,7 @@ async def test_refresh_reports_a_failure_by_source_name(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(403))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_source(session, client, "bundesagentur")
+        result = await refresh_source(session, client, "bundesagentur", rates={})
 
     assert result.failed == ["bundesagentur"]
     assert result.inserted == 0
@@ -209,7 +209,7 @@ async def test_refresh_reports_a_page_that_is_not_json_as_a_failure(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_source(session, client, "bundesagentur")
+        result = await refresh_source(session, client, "bundesagentur", rates={})
 
     assert result.failed == ["bundesagentur"]
 
