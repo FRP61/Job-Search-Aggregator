@@ -25,6 +25,16 @@ class NormalizedVacancy:
     posted_at: datetime | None = None
     fingerprint: str = ""
 
+    def is_too_old(self, now: datetime, max_age_days: int = 30) -> bool:
+        """True if more than max_age_days days have passed since publication.
+
+        The date is optional: without one there is nothing to check, so the
+        vacancy is not too old.
+        """
+        if self.posted_at is None:
+            return False
+        return now - self.posted_at > timedelta(days=max_age_days)
+
 
 def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
     """Fill the fields we compute ourselves, then return the same vacancy.
@@ -36,16 +46,6 @@ def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
         vacancy.industry = classify_industry(vacancy.title)
     vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, vacancy.city)
     return vacancy
-
-def is_published_recently(vacancy: NormalizedVacancy, now: datetime, max_age_days: int = 30) -> bool:
-    """True if the vacancy was published in the last max_age_days days.
-
-    Without a date we can't tell it is recent, so it doesn't count as recent.
-    """
-    if vacancy.posted_at is None:
-        return False
-    return now - vacancy.posted_at <= timedelta(days=max_age_days)
-
 
 def annual_min_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float | None:
     if vacancy.salary_currency is None:

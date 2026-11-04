@@ -137,7 +137,7 @@ async def test_one_page_country_does_not_pause(pauses):
 
 
 @respx.mock
-async def test_keeps_only_jobs_published_in_the_last_month():
+async def test_drops_jobs_older_than_a_month_and_keeps_jobs_without_a_date():
     jobs = [
         {"id": "fresh", "title": "Cook", "creationDate": days_ago_ms(29)},
         {"id": "old", "title": "Cook", "creationDate": days_ago_ms(31)},
@@ -148,7 +148,7 @@ async def test_keeps_only_jobs_published_in_the_last_month():
     async with httpx.AsyncClient() as client:
         vacancies = await fetch_eures_country(client, "GR")
 
-    assert [vacancy.external_id for vacancy in vacancies] == ["fresh"]
+    assert [vacancy.external_id for vacancy in vacancies] == ["fresh", "no-date"]
 
 
 @respx.mock

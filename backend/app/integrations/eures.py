@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.integrations.base import fill_computed_fields, is_published_recently, NormalizedVacancy
+from app.integrations.base import fill_computed_fields, NormalizedVacancy
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
@@ -105,7 +105,8 @@ async def fetch_eures_country(
 
     MOST_RECENT sorts by lastModificationDate, not by publication date, and
     LAST_MONTH also lets old jobs through if they were updated recently. So
-    we check the publication date ourselves and keep only the last 30 days.
+    we check the publication date ourselves and drop jobs older than 30 days.
+    Jobs without a date are kept.
     A short page means it was the last one, so no extra request is made.
     An HTTP error on any page raises, and the pages already read are dropped.
     The pause goes between pages, so a one-page country doesn't wait at all.
@@ -117,7 +118,7 @@ async def fetch_eures_country(
             await asyncio.sleep(pause_seconds)
         data = await fetch_eures_page(client, country_code, page)
         for vacancy in parse_eures_response(data, country_code):
-            if is_published_recently(vacancy, now):
+            if not vacancy.is_too_old(now):
                 vacancies.append(vacancy)
         if len(data.get("jvs", [])) < EURES_PAGE_SIZE:
             break
