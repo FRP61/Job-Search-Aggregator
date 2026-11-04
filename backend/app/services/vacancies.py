@@ -8,7 +8,13 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.base import REQUEST_ERRORS, NormalizedVacancy, annual_max_eur, annual_min_eur
+from app.integrations.base import (
+    MAX_VACANCY_AGE_DAYS,
+    REQUEST_ERRORS,
+    NormalizedVacancy,
+    annual_max_eur,
+    annual_min_eur,
+)
 from app.integrations.bundesagentur import fetch_ba_jobs
 from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import fetch_eures_country
@@ -93,6 +99,16 @@ def _as_utc(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
+def _is_repost_of_expired_row(row: Vacancy, vacancy: NormalizedVacancy, now: datetime) -> bool:
+    """True if this fresh vacancy has the same fingerprint as a row the search no longer shows.
+
+    Skipping it as a duplicate would hide a live job behind an expired row.
+    """
+    if row.fingerprint != vacancy.fingerprint or vacancy.is_too_old(now):
+        return False
+    return row.posted_at is None or now - _as_utc(row.posted_at) > timedelta(days=MAX_VACANCY_AGE_DAYS)
+
+
 def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
     """The same job on another board, where one of the two has no city to compare."""
     for row in rows:
@@ -125,12 +141,14 @@ async def save_vacancies(
     Same fingerprint from another source      -> add a link to other_sources (merged)
     Another source, no city to compare, close
     publication dates                         -> add a link to other_sources (merged)
+    Same fingerprint as an expired row        -> the row becomes this repost (updated)
     Same fingerprint, same source or link     -> nothing new (skipped)
     Otherwise                                 -> new row (inserted)
     """
     result = SaveResult()
     if not vacancies:
         return result
+    now = utcnow()
 
     industry_ids = await _load_industry_ids(session)
     rows = await _load_existing_rows(session, vacancies)
@@ -167,6 +185,13 @@ async def save_vacancies(
             if row.loose_fingerprint:
                 by_loose_fingerprint.setdefault(row.loose_fingerprint, []).append(row)
             result.inserted += 1
+        elif _is_repost_of_expired_row(twin, vacancy, now):
+            del by_key[_row_key(twin.source, twin.external_id, twin.country_code)]
+            twin.source = vacancy.source
+            twin.external_id = vacancy.external_id
+            by_key[key] = twin
+            _copy_fields(twin, vacancy, industry_id, rates)
+            result.updated += 1
         elif twin.source == vacancy.source:
             result.skipped += 1
         elif _add_other_source(twin, vacancy):

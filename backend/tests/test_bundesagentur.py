@@ -168,13 +168,14 @@ async def test_old_jobs_are_dropped_even_if_the_board_returns_them():
 async def test_refresh_saves_the_jobs(session):
     await session.execute(delete(Vacancy))
     await session.commit()
-    respx.get(BA_SEARCH_URL).mock(return_value=page_of(2))
+    data = {"ergebnisliste": [job("a", firma="Bosch"), job("b", firma="Bosch")]}
+    respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, json=data))
 
     async with httpx.AsyncClient() as client:
         result = await refresh_bundesagentur(session, client)
 
     rows = list(await session.scalars(select(Vacancy)))
-    assert result.inserted == 1  # same title, company and city: the second is a duplicate
+    assert result.inserted == 1  # same title and company, no city: the second is a duplicate
     assert result.skipped == 1
     assert rows[0].source == "bundesagentur"
 

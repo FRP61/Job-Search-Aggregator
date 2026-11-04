@@ -60,6 +60,10 @@ def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
     if vacancy.industry is None:
         vacancy.industry = classify_industry(vacancy.title)
     place = vacancy.city or vacancy.location
+    if not vacancy.company:
+        # Without a company, a title and a place don't identify a job:
+        # two employers can both look for a cook. So it only matches itself.
+        place = f"{vacancy.source}:{vacancy.external_id}"
     vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, place)
     if vacancy.company:
         title = vacancy.match_title or vacancy.title

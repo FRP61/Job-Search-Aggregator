@@ -345,3 +345,102 @@ async def test_same_job_in_two_regions_of_one_board_stays_separate(session):
     rows = await saved_rows(session)
     assert result.inserted == 2
     assert [row.location for row in rows] == ["DE124", "DEB35"]
+
+
+def days_ago(days: int) -> datetime:
+    return datetime.now(UTC) - timedelta(days=days)
+
+
+async def test_repost_with_a_new_id_replaces_a_row_past_the_30_days(session):
+    await save_vacancies(session, [make_vacancy("old", posted_at=days_ago(40))], {})
+
+    result = await save_vacancies(session, [make_vacancy("new", posted_at=days_ago(1))], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 1
+    assert result.skipped == 0
+    assert len(rows) == 1
+    assert rows[0].external_id == "new"
+    assert rows[0].url == "https://eures.example/new"
+    assert rows[0].posted_at.replace(tzinfo=UTC) > days_ago(2)
+
+
+async def test_repost_from_another_board_takes_over_a_row_past_the_30_days(session):
+    await save_vacancies(session, [make_vacancy("old", source="eures", posted_at=days_ago(40))], {})
+
+    result = await save_vacancies(session, [make_vacancy("x", source="adzuna", posted_at=days_ago(1))], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 1
+    assert (rows[0].source, rows[0].external_id) == ("adzuna", "x")
+
+
+async def test_repeated_id_is_found_after_a_repost(session):
+    await save_vacancies(session, [make_vacancy("old", posted_at=days_ago(40))], {})
+    await save_vacancies(session, [make_vacancy("new", posted_at=days_ago(1))], {})
+
+    result = await save_vacancies(session, [make_vacancy("new", posted_at=days_ago(1))], {})
+
+    assert result.updated == 1
+    assert len(await saved_rows(session)) == 1
+
+
+async def test_duplicate_of_a_fresh_row_is_still_skipped(session):
+    await save_vacancies(session, [make_vacancy("first", posted_at=days_ago(29))], {})
+
+    result = await save_vacancies(session, [make_vacancy("second", posted_at=days_ago(1))], {})
+
+    rows = await saved_rows(session)
+    assert result.skipped == 1
+    assert rows[0].external_id == "first"
+
+
+async def test_old_vacancy_does_not_replace_an_old_row(session):
+    await save_vacancies(session, [make_vacancy("first", posted_at=days_ago(40))], {})
+
+    result = await save_vacancies(session, [make_vacancy("second", posted_at=days_ago(35))], {})
+
+    assert result.skipped == 1
+    assert (await saved_rows(session))[0].external_id == "first"
+
+
+def no_company(external_id: str, source: str = "eures", city: str | None = None) -> NormalizedVacancy:
+    vacancy = NormalizedVacancy(
+        source=source,
+        external_id=external_id,
+        title="Koch",
+        url=f"https://{source}.example/{external_id}",
+        country_code="DE",
+        city=city,
+        posted_at=days_ago(1),
+    )
+    return fill_computed_fields(vacancy)
+
+
+async def test_jobs_without_a_company_are_not_duplicates_of_each_other(session):
+    result = await save_vacancies(session, [no_company("1"), no_company("2")], {})
+
+    assert result.inserted == 2
+    assert len(await saved_rows(session)) == 2
+
+
+async def test_jobs_without_a_company_in_one_city_are_not_duplicates(session):
+    result = await save_vacancies(session, [no_company("1", city="Berlin"), no_company("2", city="Berlin")], {})
+
+    assert result.inserted == 2
+
+
+async def test_jobs_without_a_company_on_two_boards_are_not_linked(session):
+    result = await save_vacancies(session, [no_company("1"), no_company("1", source="adzuna")], {})
+
+    assert result.inserted == 2
+    assert result.merged == 0
+
+
+async def test_job_without_a_company_is_updated_by_its_id(session):
+    await save_vacancies(session, [no_company("1")], {})
+
+    result = await save_vacancies(session, [no_company("1")], {})
+
+    assert result.updated == 1
+    assert len(await saved_rows(session)) == 1
