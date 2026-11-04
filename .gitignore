@@ -10,6 +10,9 @@ __pycache__/
 .env.*
 !.env.example
 
+# Local research notes
+API/
+
 # OS / editors
 .DS_Store
 .idea/
