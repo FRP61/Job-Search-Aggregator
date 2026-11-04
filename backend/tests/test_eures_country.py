@@ -1,10 +1,16 @@
 import json
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 import respx
 
 from app.integrations.eures import EURES_PAGE_SIZE, EURES_SEARCH_URL, fetch_eures_country
+
+
+def days_ago_ms(days: int) -> int:
+    """A date `days` days ago, in the milliseconds EURES uses."""
+    return int((datetime.now(UTC) - timedelta(days=days)).timestamp() * 1000)
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +27,10 @@ def pauses(monkeypatch):
 
 def page_of(count: int, prefix: str = "job") -> httpx.Response:
     """A fake EURES response with `count` jobs."""
-    jobs = [{"id": f"{prefix}-{i}", "title": "Python Developer"} for i in range(count)]
+    jobs = [
+        {"id": f"{prefix}-{i}", "title": "Python Developer", "creationDate": days_ago_ms(1)}
+        for i in range(count)
+    ]
     return httpx.Response(200, json={"jvs": jobs})
 
 
@@ -80,7 +89,10 @@ async def test_country_without_jobs_gives_an_empty_list():
 @respx.mock
 async def test_broken_job_does_not_end_the_paging():
     """A full page with one broken job is still a full page, so the next one is requested."""
-    jobs = [{"id": f"job-{i}", "title": "Python Developer"} for i in range(EURES_PAGE_SIZE - 1)]
+    jobs = [
+        {"id": f"job-{i}", "title": "Python Developer", "creationDate": days_ago_ms(1)}
+        for i in range(EURES_PAGE_SIZE - 1)
+    ]
     jobs.append({"id": "no-title"})
     route = respx.post(EURES_SEARCH_URL).mock(
         side_effect=[httpx.Response(200, json={"jvs": jobs}), page_of(1, "last")]
@@ -122,3 +134,45 @@ async def test_one_page_country_does_not_pause(pauses):
         await fetch_eures_country(client, "MT")
 
     assert pauses == []
+
+
+@respx.mock
+async def test_keeps_only_jobs_published_in_the_last_month():
+    jobs = [
+        {"id": "fresh", "title": "Cook", "creationDate": days_ago_ms(29)},
+        {"id": "old", "title": "Cook", "creationDate": days_ago_ms(31)},
+        {"id": "no-date", "title": "Cook"},
+    ]
+    respx.post(EURES_SEARCH_URL).mock(return_value=httpx.Response(200, json={"jvs": jobs}))
+
+    async with httpx.AsyncClient() as client:
+        vacancies = await fetch_eures_country(client, "GR")
+
+    assert [vacancy.external_id for vacancy in vacancies] == ["fresh"]
+
+
+@respx.mock
+async def test_page_of_old_jobs_does_not_end_the_paging():
+    """Pages are sorted by update date, so fresh jobs can follow a page of old ones."""
+    old_jobs = [
+        {"id": f"old-{i}", "title": "Cook", "creationDate": days_ago_ms(90)}
+        for i in range(EURES_PAGE_SIZE)
+    ]
+    respx.post(EURES_SEARCH_URL).mock(
+        side_effect=[httpx.Response(200, json={"jvs": old_jobs}), page_of(1, "fresh")]
+    )
+
+    async with httpx.AsyncClient() as client:
+        vacancies = await fetch_eures_country(client, "PL")
+
+    assert [vacancy.external_id for vacancy in vacancies] == ["fresh-0"]
+
+
+@respx.mock
+async def test_asks_eures_for_the_last_month():
+    route = respx.post(EURES_SEARCH_URL).mock(return_value=page_of(1))
+
+    async with httpx.AsyncClient() as client:
+        await fetch_eures_country(client, "PL")
+
+    assert json.loads(route.calls.last.request.content)["publicationPeriod"] == "LAST_MONTH"

@@ -1,7 +1,7 @@
 """The unified vacancy format: every job board adapter converts its data into this."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
 from app.services.salary import to_annual, to_eur
@@ -36,6 +36,16 @@ def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
         vacancy.industry = classify_industry(vacancy.title)
     vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, vacancy.city)
     return vacancy
+
+def is_published_recently(vacancy: NormalizedVacancy, now: datetime, max_age_days: int = 30) -> bool:
+    """True if the vacancy was published in the last max_age_days days.
+
+    Without a date we can't tell it is recent, so it doesn't count as recent.
+    """
+    if vacancy.posted_at is None:
+        return False
+    return now - vacancy.posted_at <= timedelta(days=max_age_days)
+
 
 def annual_min_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float | None:
     if vacancy.salary_currency is None:
