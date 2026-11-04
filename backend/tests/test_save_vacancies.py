@@ -9,6 +9,7 @@ from app.services.vacancies import save_vacancies
 
 
 def make_vacancy(external_id: str = "1", source: str = "eures", title: str = "Python Developer", **fields):
+    fields.setdefault("posted_at", datetime(2026, 11, 2, tzinfo=UTC))
     vacancy = NormalizedVacancy(
         source=source,
         external_id=external_id,

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from app.integrations.base import NormalizedVacancy, fill_computed_fields
@@ -11,6 +13,7 @@ def make_vacancy(**fields):
         "title": "Senior Python Developer (m/w/d)",
         "url": "https://example.com/jobs/123",
         "country_code": "DE",
+        "posted_at": datetime(2026, 11, 2, tzinfo=UTC),
     }
     return NormalizedVacancy(**{**required, **fields})
 

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from app.integrations.base import NormalizedVacancy, annual_max_eur, annual_min_eur
 
 RATES = {"PLN": 4.0}
@@ -10,6 +12,7 @@ def make_vacancy(salary_min, salary_period, salary_currency):
         title="Python Developer",
         url="https://example.com/1",
         country_code="PL",
+        posted_at=datetime(2026, 11, 2, tzinfo=UTC),
         salary_min=salary_min,
         salary_period=salary_period,
         salary_currency=salary_currency,

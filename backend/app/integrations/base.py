@@ -13,6 +13,7 @@ class NormalizedVacancy:
     title: str
     url: str
     country_code: str
+    posted_at: datetime
     company: str | None = None
     industry: str | None = None
     description: str | None = None
@@ -22,17 +23,10 @@ class NormalizedVacancy:
     salary_period: str | None = None
     city: str | None = None
     remote: bool = False
-    posted_at: datetime | None = None
     fingerprint: str = ""
 
     def is_too_old(self, now: datetime, max_age_days: int = 30) -> bool:
-        """True if more than max_age_days days have passed since publication.
-
-        The date is optional: without one there is nothing to check, so the
-        vacancy is not too old.
-        """
-        if self.posted_at is None:
-            return False
+        """True if more than max_age_days days have passed since publication."""
         return now - self.posted_at > timedelta(days=max_age_days)
 
 

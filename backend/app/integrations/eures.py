@@ -12,12 +12,9 @@ EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search
 EURES_PAGE_SIZE = 50
 
 
-def eures_posted_at(job: dict) -> datetime | None:
+def eures_posted_at(job: dict) -> datetime:
     """EURES sends the publication time as milliseconds since 1970, in UTC."""
-    created = job.get("creationDate")
-    if created is None:
-        return None
-    return datetime.fromtimestamp(created / 1000, tz=UTC)
+    return datetime.fromtimestamp(job["creationDate"] / 1000, tz=UTC)
 
 
 def parse_eures_job(job: dict, country_code: str):
@@ -52,7 +49,7 @@ def parse_eures_response(data: dict, country_code: str):
     for job in data.get("jvs", []):
         try:
             vacancy = parse_eures_job(job, country_code)
-        except KeyError:
+        except (KeyError, TypeError):  # a required field is missing or empty
             continue
         vacancies.append(vacancy)
     return vacancies
@@ -106,7 +103,6 @@ async def fetch_eures_country(
     MOST_RECENT sorts by lastModificationDate, not by publication date, and
     LAST_MONTH also lets old jobs through if they were updated recently. So
     we check the publication date ourselves and drop jobs older than 30 days.
-    Jobs without a date are kept.
     A short page means it was the last one, so no extra request is made.
     An HTTP error on any page raises, and the pages already read are dropped.
     The pause goes between pages, so a one-page country doesn't wait at all.
