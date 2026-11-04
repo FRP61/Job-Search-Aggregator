@@ -6,6 +6,9 @@ from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
 from app.services.salary import to_annual, to_eur
 
+MAX_VACANCY_AGE_DAYS = 30
+
+
 @dataclass
 class NormalizedVacancy:
     source: str
@@ -25,7 +28,7 @@ class NormalizedVacancy:
     remote: bool = False
     fingerprint: str = ""
 
-    def is_too_old(self, now: datetime, max_age_days: int = 30) -> bool:
+    def is_too_old(self, now: datetime, max_age_days: int = MAX_VACANCY_AGE_DAYS) -> bool:
         """True if more than max_age_days days have passed since publication."""
         return now - self.posted_at > timedelta(days=max_age_days)
 

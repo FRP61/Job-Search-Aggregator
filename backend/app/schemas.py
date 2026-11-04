@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -35,6 +37,29 @@ class CountryCostOfLivingOut(BaseModel):
     country: CountryOut
     latest: CostOfLivingYearOut
     history: list[CostOfLivingYearOut]
+
+
+class VacancyOut(ORMModel):
+    id: int
+    source: str
+    title: str
+    company: str | None
+    country_code: str
+    city: str | None
+    url: str
+    remote: bool
+    industry: IndustryOut | None
+    salary_annual_min_eur: float | None
+    salary_annual_max_eur: float | None
+    posted_at: datetime
+    other_sources: list[dict]
+
+
+class VacancyPageOut(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[VacancyOut]
 
 
 class HealthOut(BaseModel):

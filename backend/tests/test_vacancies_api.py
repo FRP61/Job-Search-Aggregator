@@ -1,0 +1,129 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from sqlalchemy import delete
+
+from app.integrations.base import NormalizedVacancy, fill_computed_fields
+from app.models import Vacancy
+from app.services.vacancies import save_vacancies
+
+URL = "/api/v1/vacancies"
+
+
+def days_ago(days: int) -> datetime:
+    return datetime.now(UTC) - timedelta(days=days)
+
+
+def make_vacancy(external_id: str, country_code: str = "DE", posted_at: datetime | None = None, **fields):
+    vacancy = NormalizedVacancy(
+        source="eures",
+        external_id=external_id,
+        title=f"Python Developer {external_id}",
+        url=f"https://eures.example/{external_id}",
+        country_code=country_code,
+        posted_at=posted_at or days_ago(1),
+        **fields,
+    )
+    return fill_computed_fields(vacancy)
+
+
+@pytest.fixture(autouse=True)
+async def empty_vacancies(session):
+    await session.execute(delete(Vacancy))
+    await session.commit()
+
+
+async def found_ids(client, **params) -> list[str]:
+    response = await client.get(URL, params=params)
+    assert response.status_code == 200
+    return [item["url"].rsplit("/", 1)[1] for item in response.json()["items"]]
+
+
+async def test_without_a_country_shows_all_countries(session, client):
+    await save_vacancies(session, [make_vacancy("de", "DE"), make_vacancy("pl", "PL")], {})
+
+    assert sorted(await found_ids(client)) == ["de", "pl"]
+
+
+async def test_filters_by_one_country(session, client):
+    await save_vacancies(session, [make_vacancy("de", "DE"), make_vacancy("pl", "PL")], {})
+
+    assert await found_ids(client, country="PL") == ["pl"]
+
+
+async def test_filters_by_several_countries(session, client):
+    vacancies = [make_vacancy("de", "DE"), make_vacancy("pl", "PL"), make_vacancy("gr", "GR")]
+    await save_vacancies(session, vacancies, {})
+
+    assert sorted(await found_ids(client, country=["PL", "GR"])) == ["gr", "pl"]
+
+
+async def test_country_code_in_lowercase_works(session, client):
+    await save_vacancies(session, [make_vacancy("pl", "PL")], {})
+
+    assert await found_ids(client, country="pl") == ["pl"]
+
+
+async def test_unknown_country_finds_nothing(session, client):
+    await save_vacancies(session, [make_vacancy("pl", "PL")], {})
+
+    assert await found_ids(client, country="XX") == []
+
+
+async def test_vacancies_older_than_30_days_are_hidden(session, client):
+    vacancies = [make_vacancy("fresh", posted_at=days_ago(29)), make_vacancy("old", posted_at=days_ago(31))]
+    await save_vacancies(session, vacancies, {})
+
+    response = await client.get(URL)
+    assert [item["url"].rsplit("/", 1)[1] for item in response.json()["items"]] == ["fresh"]
+    assert response.json()["total"] == 1
+
+
+async def test_newest_comes_first(session, client):
+    vacancies = [
+        make_vacancy("middle", posted_at=days_ago(5)),
+        make_vacancy("oldest", posted_at=days_ago(9)),
+        make_vacancy("newest", posted_at=days_ago(1)),
+    ]
+    await save_vacancies(session, vacancies, {})
+
+    assert await found_ids(client) == ["newest", "middle", "oldest"]
+
+
+async def test_pages_do_not_overlap_and_total_counts_everything(session, client):
+    await save_vacancies(session, [make_vacancy(f"job{i}", posted_at=days_ago(i + 1)) for i in range(5)], {})
+
+    first = (await client.get(URL, params={"page": 1, "page_size": 2})).json()
+    third = (await client.get(URL, params={"page": 3, "page_size": 2})).json()
+
+    assert first["total"] == 5
+    assert (first["page"], first["page_size"]) == (1, 2)
+    assert [item["url"].rsplit("/", 1)[1] for item in first["items"]] == ["job0", "job1"]
+    assert [item["url"].rsplit("/", 1)[1] for item in third["items"]] == ["job4"]
+
+
+async def test_total_respects_the_country_filter(session, client):
+    await save_vacancies(session, [make_vacancy("de", "DE"), make_vacancy("pl", "PL")], {})
+
+    assert (await client.get(URL, params={"country": "PL"})).json()["total"] == 1
+
+
+@pytest.mark.parametrize("params", [{"page": 0}, {"page_size": 0}, {"page_size": 101}])
+async def test_invalid_paging_is_rejected(client, params):
+    assert (await client.get(URL, params=params)).status_code == 422
+
+
+async def test_item_has_the_fields_the_frontend_needs(session, client):
+    vacancy = make_vacancy("1", "PL", salary_min=4250, salary_currency="PLN", salary_period="month", company="Bosch")
+    await save_vacancies(session, [vacancy], {"PLN": 4.25})
+
+    item = (await client.get(URL)).json()["items"][0]
+    assert item["title"] == "Python Developer 1"
+    assert item["company"] == "Bosch"
+    assert item["country_code"] == "PL"
+    assert item["industry"]["slug"] == "it"
+    assert item["salary_annual_min_eur"] == 12000
+    assert item["salary_annual_max_eur"] is None
+    assert item["other_sources"] == []
+    assert item["posted_at"] is not None
+    assert "description" not in item
