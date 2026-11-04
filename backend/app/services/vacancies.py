@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.base import NormalizedVacancy, annual_max_eur, annual_min_eur
+from app.integrations.bundesagentur import fetch_ba_jobs
 from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import fetch_eures_country
 from app.models import Country, Industry, Vacancy, utcnow
@@ -163,3 +164,18 @@ async def refresh_eures(
         await apply_occupation_industries(session, client, vacancies, pause_seconds)
         total.add(await save_vacancies(session, vacancies, {}))
     return total
+
+
+async def refresh_bundesagentur(
+    session: AsyncSession, client: httpx.AsyncClient, max_pages: int = 10, pause_seconds: float = 0.2
+) -> SaveResult:
+    """Download German jobs from the Bundesagentur and save them.
+
+    A failed request is noted in failed_countries as "DE". Rates are empty
+    because the search results have no salary amounts.
+    """
+    try:
+        vacancies = await fetch_ba_jobs(client, max_pages, pause_seconds)
+    except httpx.HTTPError:
+        return SaveResult(failed_countries=["DE"])
+    return await save_vacancies(session, vacancies, {})
