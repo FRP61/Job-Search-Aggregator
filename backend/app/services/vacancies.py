@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -12,6 +13,11 @@ from app.integrations.bundesagentur import fetch_ba_jobs
 from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import fetch_eures_country
 from app.models import Country, Industry, Vacancy, utcnow
+
+
+# A copy on another board appears soon after the original. Further apart than
+# this, the same title at the same company is more likely another branch's job.
+COPY_MAX_DAYS_APART = 3
 
 
 @dataclass
@@ -74,10 +80,26 @@ def _row_key(source: str, external_id: str, country_code: str) -> tuple[str, str
     return (source, external_id, country_code)
 
 
+def _published_close_together(row: Vacancy, vacancy: NormalizedVacancy) -> bool:
+    """True if both were published within COPY_MAX_DAYS_APART days of each other."""
+    if row.posted_at is None:
+        return False
+    return abs(_as_utc(row.posted_at) - vacancy.posted_at) <= timedelta(days=COPY_MAX_DAYS_APART)
+
+
+def _as_utc(moment: datetime) -> datetime:
+    """SQLite gives dates back without a time zone, Postgres with one."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
 def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
     """The same job on another board, where one of the two has no city to compare."""
     for row in rows:
-        if row.source != vacancy.source and (row.city is None or vacancy.city is None):
+        if (
+            row.source != vacancy.source
+            and (row.city is None or vacancy.city is None)
+            and _published_close_together(row, vacancy)
+        ):
             return row
     return None
 
@@ -100,7 +122,8 @@ async def save_vacancies(
 
     Same source, id and country already saved -> update that row (updated)
     Same fingerprint from another source      -> add a link to other_sources (merged)
-    Another source without a city to compare  -> add a link to other_sources (merged)
+    Another source, no city to compare, close
+    publication dates                         -> add a link to other_sources (merged)
     Same fingerprint, same source or link     -> nothing new (skipped)
     Otherwise                                 -> new row (inserted)
     """

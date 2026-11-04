@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, select
@@ -207,7 +207,12 @@ async def test_second_run_updates_each_country_separately(session):
     assert [(row.country_code, row.salary_min) for row in rows] == [("AT", 1000), ("IT", 2000)]
 
 
-def eures_job(external_id: str, title: str, company: str | None = "Pneuhage Management GmbH & Co. KG"):
+def eures_job(
+    external_id: str,
+    title: str,
+    company: str | None = "Pneuhage Management GmbH & Co. KG",
+    posted_at: datetime = datetime(2026, 11, 2, tzinfo=UTC),
+):
     vacancy = NormalizedVacancy(
         source="eures",
         external_id=external_id,
@@ -215,7 +220,7 @@ def eures_job(external_id: str, title: str, company: str | None = "Pneuhage Mana
         url=f"https://eures.example/{external_id}",
         country_code="DE",
         company=company,
-        posted_at=datetime(2026, 11, 2, tzinfo=UTC),
+        posted_at=posted_at,
     )
     return fill_computed_fields(vacancy)
 
@@ -298,3 +303,30 @@ async def test_without_a_company_nothing_is_linked_by_title_alone(session):
 
     assert result.inserted == 1
     assert result.merged == 0
+
+
+@pytest.mark.parametrize("days", [3, -3])
+async def test_copy_published_up_to_3_days_apart_is_linked(session, days):
+    await save_vacancies(session, [ba_job()], {})
+    posted_at = datetime(2026, 11, 2, tzinfo=UTC) + timedelta(days=days)
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE, posted_at=posted_at)], {})
+
+    assert result.merged == 1
+
+
+@pytest.mark.parametrize("delta", [timedelta(days=3, seconds=1), timedelta(days=-3, seconds=-1), timedelta(days=90)])
+async def test_same_title_published_further_apart_stays_separate(session, delta):
+    await save_vacancies(session, [ba_job()], {})
+    posted_at = datetime(2026, 11, 2, tzinfo=UTC) + delta
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE, posted_at=posted_at)], {})
+
+    assert result.inserted == 1
+    assert result.merged == 0
+    assert len(await saved_rows(session)) == 2
+
+
+async def test_date_check_works_inside_one_batch(session):
+    far = eures_job("e1", REAL_EURES_TITLE, posted_at=datetime(2026, 8, 1, tzinfo=UTC))
+    result = await save_vacancies(session, [ba_job(), far], {})
+
+    assert result.inserted == 2
