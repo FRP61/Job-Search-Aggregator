@@ -1,6 +1,7 @@
 """EURES, the EU job portal: public employment services of all 27 member states."""
 
 import asyncio
+from datetime import UTC, datetime
 
 import httpx
 
@@ -9,6 +10,14 @@ from app.integrations.base import fill_computed_fields, NormalizedVacancy
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 EURES_PAGE_SIZE = 50
+
+
+def eures_posted_at(job: dict) -> datetime | None:
+    """EURES sends the publication time as milliseconds since 1970, in UTC."""
+    created = job.get("creationDate")
+    if created is None:
+        return None
+    return datetime.fromtimestamp(created / 1000, tz=UTC)
 
 
 def parse_eures_job(job: dict, country_code: str):
@@ -31,6 +40,7 @@ def parse_eures_job(job: dict, country_code: str):
         country_code=country_code,
         company=company,
         description=job.get("description"),
+        posted_at=eures_posted_at(job),
     )
 
     return fill_computed_fields(vacancy)
@@ -91,8 +101,9 @@ async def fetch_eures_page(client: httpx.AsyncClient, country_code: str, page: i
 async def fetch_eures_country(
     client: httpx.AsyncClient, country_code: str, max_pages: int = 20, pause_seconds: float = 0.2
 ) -> list[NormalizedVacancy]:
-    """Collect a country's newest jobs, page by page, up to max_pages pages.
+    """Collect a country's most recently updated jobs, up to max_pages pages.
 
+    MOST_RECENT sorts by lastModificationDate, not by publication date.
     A short page means it was the last one, so no extra request is made.
     An HTTP error on any page raises, and the pages already read are dropped.
     The pause goes between pages, so a one-page country doesn't wait at all.

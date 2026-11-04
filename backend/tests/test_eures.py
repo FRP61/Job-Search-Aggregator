@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from app.integrations.eures import parse_eures_job
 from app.services.normalize import fingerprint
 
@@ -60,3 +62,14 @@ def test_computed_fields_are_filled():
         "DE",
         None,
     )
+
+
+def test_posted_at_is_converted_from_milliseconds():
+    job = {"id": "1", "title": "Cook", "creationDate": 1793622360191}
+    posted_at = parse_eures_job(job, "DE").posted_at
+    assert posted_at == datetime(2026, 11, 2, 12, 26, 0, 191000, tzinfo=UTC)
+
+
+def test_job_without_a_date_has_no_posted_at():
+    job = {"id": "1", "title": "Cook"}
+    assert parse_eures_job(job, "DE").posted_at is None

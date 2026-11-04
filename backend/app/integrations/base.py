@@ -1,6 +1,7 @@
 """The unified vacancy format: every job board adapter converts its data into this."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
 from app.services.salary import to_annual, to_eur
@@ -21,6 +22,7 @@ class NormalizedVacancy:
     salary_period: str | None = None
     city: str | None = None
     remote: bool = False
+    posted_at: datetime | None = None
     fingerprint: str = ""
 
 
