@@ -102,3 +102,13 @@ def test_without_a_useful_code_the_title_is_used():
 def test_empty_codes_fall_back_to_the_title():
     assert parse_eures_job(job_with_codes(None, "Python Developer"), "DE").industry == "it"
     assert parse_eures_job(job_with_codes([], "Florist"), "DE").industry == "other"
+
+
+def test_job_with_an_isco_industry_needs_no_lookup():
+    job = job_with_codes([OCCUPATION, ISCO + "2512"])
+    assert parse_eures_job(job, "DE").occupation_uris == []
+
+
+def test_job_without_an_isco_industry_keeps_occupations_for_the_lookup():
+    job = job_with_codes([ISCO + "6111", OCCUPATION])
+    assert parse_eures_job(job, "DE").occupation_uris == [OCCUPATION]

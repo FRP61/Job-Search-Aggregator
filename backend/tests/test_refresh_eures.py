@@ -5,9 +5,11 @@ import httpx
 import pytest
 import respx
 from sqlalchemy import delete, select
+from sqlalchemy.orm import selectinload
 
+from app.integrations.esco import ESCO_OCCUPATION_URL
 from app.integrations.eures import EURES_SEARCH_URL
-from app.models import Vacancy
+from app.models import ApiCache, Vacancy
 from app.services.vacancies import refresh_eures
 
 
@@ -24,6 +26,7 @@ def eures_answer(request: httpx.Request) -> httpx.Response:
 @pytest.fixture(autouse=True)
 async def empty_vacancies(session):
     await session.execute(delete(Vacancy))
+    await session.execute(delete(ApiCache))
     await session.commit()
 
 
@@ -118,3 +121,18 @@ async def test_unknown_country_code_requests_nothing(session):
 
     assert route.call_count == 0
     assert result.inserted == 0
+
+
+@respx.mock
+async def test_industry_of_a_saved_job_comes_from_its_occupation(session):
+    uri = "http://data.europa.eu/esco/occupation/refresh-test"
+    created = int((datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000)
+    job = {"id": "occ", "title": "Księgowy", "creationDate": created, "jobCategoriesCodes": [uri]}
+    respx.post(EURES_SEARCH_URL).mock(return_value=httpx.Response(200, json={"jvs": [job]}))
+    respx.get(ESCO_OCCUPATION_URL).mock(return_value=httpx.Response(200, json={"code": "3313.2"}))
+
+    async with httpx.AsyncClient() as client:
+        await refresh_eures(session, client, ["PL"])
+
+    row = await session.scalar(select(Vacancy).options(selectinload(Vacancy.industry)))
+    assert row.industry.slug == "finance"

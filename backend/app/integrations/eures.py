@@ -12,6 +12,7 @@ EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=e
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 EURES_PAGE_SIZE = 50
 ISCO_URI_PREFIX = "http://data.europa.eu/esco/isco/C"
+OCCUPATION_URI_PREFIX = "http://data.europa.eu/esco/occupation/"
 
 
 def eures_posted_at(job: dict) -> datetime:
@@ -32,6 +33,11 @@ def eures_industry(job: dict) -> str | None:
     return None
 
 
+def eures_occupation_uris(job: dict) -> list[str]:
+    """The job's links to ESCO occupations, which need a lookup to become an ISCO code."""
+    return [uri for uri in job.get("jobCategoriesCodes") or [] if uri.startswith(OCCUPATION_URI_PREFIX)]
+
+
 def parse_eures_job(job: dict, country_code: str):
     """Turn one job from an EURES search response into a NormalizedVacancy.
 
@@ -44,6 +50,8 @@ def parse_eures_job(job: dict, country_code: str):
     if employer is not None:
         company = employer.get("name")
 
+    industry = eures_industry(job)
+
     vacancy = NormalizedVacancy(
         source="eures",
         external_id=job["id"],
@@ -51,7 +59,8 @@ def parse_eures_job(job: dict, country_code: str):
         url=EURES_JOB_URL.format(job_id=job["id"]),
         country_code=country_code,
         company=company,
-        industry=eures_industry(job),
+        industry=industry,
+        occupation_uris=eures_occupation_uris(job) if industry is None else [],
         description=job.get("description"),
         posted_at=eures_posted_at(job),
     )

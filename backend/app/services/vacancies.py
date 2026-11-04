@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.base import NormalizedVacancy, annual_max_eur, annual_min_eur
+from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import fetch_eures_country
 from app.models import Country, Industry, Vacancy, utcnow
 
@@ -159,5 +160,6 @@ async def refresh_eures(
         except httpx.HTTPError:
             total.failed_countries.append(code)
             continue
+        await apply_occupation_industries(session, client, vacancies, pause_seconds)
         total.add(await save_vacancies(session, vacancies, {}))
     return total

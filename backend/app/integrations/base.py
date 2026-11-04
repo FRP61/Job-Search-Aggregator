@@ -1,6 +1,6 @@
 """The unified vacancy format: every job board adapter converts its data into this."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
@@ -27,6 +27,8 @@ class NormalizedVacancy:
     city: str | None = None
     remote: bool = False
     fingerprint: str = ""
+    # Occupation links to look up when the industry so far is only a guess from the title
+    occupation_uris: list[str] = field(default_factory=list)
 
     def is_too_old(self, now: datetime, max_age_days: int = MAX_VACANCY_AGE_DAYS) -> bool:
         """True if more than max_age_days days have passed since publication."""
