@@ -75,3 +75,30 @@ def test_posted_at_is_converted_from_milliseconds():
 def test_job_without_a_date_is_rejected():
     with pytest.raises(KeyError):
         parse_eures_job({"id": "1", "title": "Cook"}, "DE")
+
+
+ISCO = "http://data.europa.eu/esco/isco/C"
+OCCUPATION = "http://data.europa.eu/esco/occupation/0ededdc2"
+
+
+def job_with_codes(codes, title="Pracownik") -> dict:
+    return {"id": "1", "title": title, "creationDate": 1793622360191, "jobCategoriesCodes": codes}
+
+
+def test_industry_comes_from_the_isco_code_in_any_language():
+    assert parse_eures_job(job_with_codes([ISCO + "7126"], "Monter rurociągów"), "DE").industry == "construction"
+
+
+def test_first_code_with_an_industry_wins():
+    codes = [OCCUPATION, ISCO + "6111", ISCO + "2512", ISCO + "7126"]
+    assert parse_eures_job(job_with_codes(codes), "DE").industry == "it"
+
+
+def test_without_a_useful_code_the_title_is_used():
+    job = job_with_codes([OCCUPATION], "Python Developer")
+    assert parse_eures_job(job, "DE").industry == "it"
+
+
+def test_empty_codes_fall_back_to_the_title():
+    assert parse_eures_job(job_with_codes(None, "Python Developer"), "DE").industry == "it"
+    assert parse_eures_job(job_with_codes([], "Florist"), "DE").industry == "other"

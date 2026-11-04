@@ -6,15 +6,30 @@ from datetime import UTC, datetime
 import httpx
 
 from app.integrations.base import fill_computed_fields, NormalizedVacancy
+from app.services.classify import industry_from_isco
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 EURES_PAGE_SIZE = 50
+ISCO_URI_PREFIX = "http://data.europa.eu/esco/isco/C"
 
 
 def eures_posted_at(job: dict) -> datetime:
     """EURES sends the publication time as milliseconds since 1970, in UTC."""
     return datetime.fromtimestamp(job["creationDate"] / 1000, tz=UTC)
+
+
+def eures_industry(job: dict) -> str | None:
+    """The industry from the job's ISCO codes, the first code that gives one wins.
+
+    Codes are the same in every language, unlike the words in a title.
+    """
+    for uri in job.get("jobCategoriesCodes") or []:
+        if uri.startswith(ISCO_URI_PREFIX):
+            industry = industry_from_isco(uri.removeprefix(ISCO_URI_PREFIX))
+            if industry is not None:
+                return industry
+    return None
 
 
 def parse_eures_job(job: dict, country_code: str):
@@ -36,6 +51,7 @@ def parse_eures_job(job: dict, country_code: str):
         url=EURES_JOB_URL.format(job_id=job["id"]),
         country_code=country_code,
         company=company,
+        industry=eures_industry(job),
         description=job.get("description"),
         posted_at=eures_posted_at(job),
     )

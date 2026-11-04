@@ -1,6 +1,6 @@
 """Guess a vacancy's industry from its title using the keywords in app/data/industries.py."""
 
-from app.data.industries import INDUSTRIES
+from app.data.industries import INDUSTRIES, ISCO_TO_INDUSTRY
 from app.services.normalize import normalize_title
 
 def matches_keyword(title: str, keyword: str) -> bool:
@@ -47,3 +47,19 @@ def classify_industry(title: str) -> str:
                 return industry.slug
     return "other"
 
+
+def industry_from_isco(code: str) -> str | None:
+    """The industry slug of an ISCO occupation code, or None if it has none.
+
+    The most exact prefix wins, and a broader group code works too.
+
+    industry_from_isco("2512") -> "it"
+    industry_from_isco("5244") -> "customer-service"   (not "retail", the "52" group)
+    industry_from_isco("25")   -> "it"
+    industry_from_isco("6111") -> None                  (farming isn't in our list)
+    """
+    for length in range(len(code), 0, -1):
+        industry = ISCO_TO_INDUSTRY.get(code[:length])
+        if industry is not None:
+            return industry
+    return None
