@@ -106,12 +106,32 @@ async def test_broken_job_does_not_end_the_paging():
 
 
 @respx.mock
-async def test_error_on_a_later_page_raises():
+async def test_error_on_a_later_page_keeps_what_was_read():
     respx.post(EURES_SEARCH_URL).mock(side_effect=[page_of(EURES_PAGE_SIZE), httpx.Response(500)])
+
+    async with httpx.AsyncClient() as client:
+        vacancies = await fetch_eures_country(client, "PL")
+
+    assert len(vacancies) == EURES_PAGE_SIZE
+
+
+@respx.mock
+async def test_error_on_the_first_page_raises():
+    respx.post(EURES_SEARCH_URL).mock(return_value=httpx.Response(500))
 
     async with httpx.AsyncClient() as client:
         with pytest.raises(httpx.HTTPStatusError):
             await fetch_eures_country(client, "PL")
+
+
+@respx.mock
+async def test_default_limit_is_what_eures_allows():
+    route = respx.post(EURES_SEARCH_URL).mock(return_value=page_of(EURES_PAGE_SIZE))
+
+    async with httpx.AsyncClient() as client:
+        await fetch_eures_country(client, "PL")
+
+    assert route.call_count == 200
 
 
 @respx.mock

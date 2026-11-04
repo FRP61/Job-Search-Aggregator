@@ -1,13 +1,18 @@
 """The unified vacancy format: every job board adapter converts its data into this."""
 
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
 from app.services.salary import to_annual, to_eur
+
+logger = logging.getLogger(__name__)
 
 MAX_VACANCY_AGE_DAYS = 30
 
@@ -85,3 +90,35 @@ def annual_max_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float
     annual = to_annual(vacancy.salary_max, vacancy.salary_period)
     eur_amount = to_eur(annual, vacancy.salary_currency, rates)
     return eur_amount
+
+
+async def collect_pages(
+    fetch_page: Callable[[int], Awaitable[dict]],
+    parse: Callable[[dict], list[NormalizedVacancy]],
+    count_raw_jobs: Callable[[dict], int],
+    page_size: int,
+    max_pages: int,
+    pause_seconds: float,
+) -> list[NormalizedVacancy]:
+    """Read a board page by page, keeping jobs that aren't too old.
+
+    A short page means it was the last one. A failed first page raises, so the
+    caller can report it. A failure later keeps what was read: a long download
+    shouldn't be thrown away because of one bad answer near the end.
+    """
+    now = datetime.now(UTC)
+    vacancies = []
+    for page in range(1, max_pages + 1):
+        if page > 1:
+            await asyncio.sleep(pause_seconds)
+        try:
+            data = await fetch_page(page)
+        except REQUEST_ERRORS as error:
+            if page == 1:
+                raise
+            logger.warning("Stopped at page %d, keeping %d jobs: %r", page, len(vacancies), error)
+            break
+        vacancies.extend(vacancy for vacancy in parse(data) if not vacancy.is_too_old(now))
+        if count_raw_jobs(data) < page_size:
+            break
+    return vacancies

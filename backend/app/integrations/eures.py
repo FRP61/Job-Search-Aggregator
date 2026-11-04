@@ -5,12 +5,13 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.integrations.base import JOB_PARSE_ERRORS, fill_computed_fields, NormalizedVacancy
+from app.integrations.base import JOB_PARSE_ERRORS, collect_pages, fill_computed_fields, NormalizedVacancy
 from app.services.classify import industry_from_isco
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 EURES_PAGE_SIZE = 50
+EURES_MAX_PAGES = 200  # page 201 answers 400 "Too many results were requested"
 ISCO_URI_PREFIX = "http://data.europa.eu/esco/isco/C"
 OCCUPATION_URI_PREFIX = "http://data.europa.eu/esco/occupation/"
 
@@ -131,27 +132,23 @@ async def fetch_eures_page(client: httpx.AsyncClient, country_code: str, page: i
 
 
 async def fetch_eures_country(
-    client: httpx.AsyncClient, country_code: str, max_pages: int = 20, pause_seconds: float = 0.2
+    client: httpx.AsyncClient, country_code: str, max_pages: int = EURES_MAX_PAGES, pause_seconds: float = 0.2
 ) -> list[NormalizedVacancy]:
     """Collect a country's most recently updated jobs, up to max_pages pages.
 
     MOST_RECENT sorts by lastModificationDate, not by publication date, and
     LAST_MONTH also lets old jobs through if they were updated recently. So
-    we check the publication date ourselves and drop jobs older than 30 days.
-    A short page means it was the last one, so no extra request is made.
-    An HTTP error on any page raises, and the pages already read are dropped.
-    The pause goes between pages, so a one-page country doesn't wait at all.
+    the publication date is checked again in collect_pages.
     """
-    now = datetime.now(UTC)
-    vacancies = []
-    for page in range(1, max_pages + 1):
-        if page > 1:
-            await asyncio.sleep(pause_seconds)
-        data = await fetch_eures_page(client, country_code, page)
-        for vacancy in parse_eures_response(data, country_code):
-            if not vacancy.is_too_old(now):
-                vacancies.append(vacancy)
-        if len(data.get("jvs", [])) < EURES_PAGE_SIZE:
-            break
-    return vacancies
 
+    async def fetch_page(page: int) -> dict:
+        return await fetch_eures_page(client, country_code, page)
+
+    return await collect_pages(
+        fetch_page,
+        lambda data: parse_eures_response(data, country_code),
+        lambda data: len(data.get("jvs", [])),
+        EURES_PAGE_SIZE,
+        max_pages,
+        pause_seconds,
+    )

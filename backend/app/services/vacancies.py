@@ -17,13 +17,17 @@ from app.integrations.base import (
 )
 from app.integrations.bundesagentur import fetch_ba_jobs
 from app.integrations.esco import apply_occupation_industries
-from app.integrations.eures import fetch_eures_country
+from app.integrations.eures import EURES_MAX_PAGES, fetch_eures_country
 from app.models import Country, Industry, Vacancy, utcnow
 
 
 # A copy on another board appears soon after the original. Further apart than
 # this, the same title at the same company is more likely another branch's job.
 COPY_MAX_DAYS_APART = 3
+SAVE_BATCH_SIZE = 1000
+
+# Sources with one download for the whole board; EURES goes country by country
+SOURCES = {"bundesagentur": fetch_ba_jobs}
 
 
 @dataclass
@@ -32,7 +36,7 @@ class SaveResult:
     updated: int = 0
     merged: int = 0
     skipped: int = 0
-    failed_countries: list[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)  # countries or sources that didn't answer
 
     def add(self, other: "SaveResult") -> None:
         """Add the counts of one saved batch to this total."""
@@ -40,6 +44,7 @@ class SaveResult:
         self.updated += other.updated
         self.merged += other.merged
         self.skipped += other.skipped
+        self.failed.extend(other.failed)
 
 
 def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | None, rates: dict[str, float]) -> None:
@@ -206,16 +211,26 @@ async def save_vacancies(
     return result
 
 
+async def save_in_batches(
+    session: AsyncSession, vacancies: list[NormalizedVacancy], rates: dict[str, float]
+) -> SaveResult:
+    """Save a long list in parts: one query can't take tens of thousands of values."""
+    total = SaveResult()
+    for start in range(0, len(vacancies), SAVE_BATCH_SIZE):
+        total.add(await save_vacancies(session, vacancies[start : start + SAVE_BATCH_SIZE], rates))
+    return total
+
+
 async def refresh_eures(
     session: AsyncSession,
     client: httpx.AsyncClient,
     country_codes: list[str] | None = None,
-    max_pages: int = 20,
+    max_pages: int = EURES_MAX_PAGES,
     pause_seconds: float = 0.2,
 ) -> SaveResult:
     """Download EURES jobs country by country and save them. No codes means all active countries.
 
-    A country whose request fails is noted in failed_countries and the rest carry on.
+    A country whose request fails is noted in failed and the rest carry on.
     Rates are empty because EURES search results have no salaries.
     """
     query = select(Country.code).where(Country.is_active).order_by(Country.code)
@@ -230,23 +245,34 @@ async def refresh_eures(
         try:
             vacancies = await fetch_eures_country(client, code, max_pages, pause_seconds)
         except REQUEST_ERRORS:
-            total.failed_countries.append(code)
+            total.failed.append(code)
             continue
         await apply_occupation_industries(session, client, vacancies, pause_seconds)
-        total.add(await save_vacancies(session, vacancies, {}))
+        total.add(await save_in_batches(session, vacancies, {}))
     return total
 
 
-async def refresh_bundesagentur(
-    session: AsyncSession, client: httpx.AsyncClient, max_pages: int = 10, pause_seconds: float = 0.2
+async def refresh_source(
+    session: AsyncSession,
+    client: httpx.AsyncClient,
+    name: str,
+    max_pages: int | None = None,
+    rates: dict[str, float] | None = None,
 ) -> SaveResult:
-    """Download German jobs from the Bundesagentur and save them.
-
-    A failed request is noted in failed_countries as "DE". Rates are empty
-    because the search results have no salary amounts.
-    """
+    """Download one source from SOURCES and save its jobs. A failure is noted in failed."""
+    fetch = SOURCES[name]
     try:
-        vacancies = await fetch_ba_jobs(client, max_pages, pause_seconds)
+        vacancies = await (fetch(client) if max_pages is None else fetch(client, max_pages))
     except REQUEST_ERRORS:
-        return SaveResult(failed_countries=["DE"])
-    return await save_vacancies(session, vacancies, {})
+        return SaveResult(failed=[name])
+    return await save_in_batches(session, vacancies, rates or {})
+
+
+async def refresh_all(session: AsyncSession, client: httpx.AsyncClient) -> SaveResult:
+    """Refresh every source. National boards go before EURES because they give the
+    city, so the copy from EURES becomes a link on a row that knows it."""
+    total = SaveResult()
+    for name in SOURCES:
+        total.add(await refresh_source(session, client, name))
+    total.add(await refresh_eures(session, client))
+    return total

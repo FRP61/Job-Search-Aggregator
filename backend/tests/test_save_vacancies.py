@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 from app.integrations.base import NormalizedVacancy, fill_computed_fields
 from app.integrations.bundesagentur import parse_ba_job
 from app.models import Industry, Vacancy
-from app.services.vacancies import save_vacancies
+from app.services.vacancies import save_in_batches, save_vacancies
 
 
 def make_vacancy(
@@ -459,3 +459,22 @@ async def test_row_can_take_a_fingerprint_another_row_gives_up_in_the_same_batch
     rows = await saved_rows(session)
     assert result.updated == 2
     assert [row.fingerprint for row in rows] == [first_renamed.fingerprint, second_renamed.fingerprint]
+
+
+async def test_long_list_is_saved_in_batches(session, monkeypatch):
+    monkeypatch.setattr("app.services.vacancies.SAVE_BATCH_SIZE", 2)
+    vacancies = [make_vacancy(str(i), title=f"Job {i}") for i in range(5)]
+
+    result = await save_in_batches(session, vacancies, {})
+
+    assert result.inserted == 5
+    assert len(await saved_rows(session)) == 5
+
+
+async def test_duplicate_in_a_later_batch_is_still_found(session, monkeypatch):
+    monkeypatch.setattr("app.services.vacancies.SAVE_BATCH_SIZE", 1)
+
+    result = await save_in_batches(session, [make_vacancy("1"), make_vacancy("2")], {})
+
+    assert result.inserted == 1
+    assert result.skipped == 1

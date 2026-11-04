@@ -1,11 +1,10 @@
 """Bundesagentur für Arbeit: the German federal employment agency's job search."""
 
-import asyncio
 from datetime import UTC, datetime
 
 import httpx
 
-from app.integrations.base import JOB_PARSE_ERRORS, NormalizedVacancy, fill_computed_fields
+from app.integrations.base import JOB_PARSE_ERRORS, NormalizedVacancy, collect_pages, fill_computed_fields
 from app.services.classify import classify_industry
 
 BA_SEARCH_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs"
@@ -13,6 +12,7 @@ BA_JOB_URL = "https://www.arbeitsagentur.de/jobsuche/jobdetail/{job_id}"
 # The same public client id for everyone, not a personal secret
 BA_HEADERS = {"X-API-Key": "jobboerse-jobsuche"}
 BA_PAGE_SIZE = 100
+BA_MAX_PAGES = 100  # page 101 answers 400 "Ergebnismenge überschritten"
 BA_GERMANY = "DEUTSCHLAND"
 
 
@@ -88,21 +88,18 @@ async def fetch_ba_page(client: httpx.AsyncClient, page: int) -> dict:
 
 
 async def fetch_ba_jobs(
-    client: httpx.AsyncClient, max_pages: int = 10, pause_seconds: float = 0.2
+    client: httpx.AsyncClient, max_pages: int = BA_MAX_PAGES, pause_seconds: float = 0.2
 ) -> list[NormalizedVacancy]:
-    """Collect jobs page by page. A short page means it was the last one.
+    """Collect the newest jobs page by page."""
 
-    The age is also checked here, because the board's own filter isn't guaranteed.
-    """
-    now = datetime.now(UTC)
-    vacancies = []
-    for page in range(1, max_pages + 1):
-        if page > 1:
-            await asyncio.sleep(pause_seconds)
-        data = await fetch_ba_page(client, page)
-        for vacancy in parse_ba_response(data):
-            if not vacancy.is_too_old(now):
-                vacancies.append(vacancy)
-        if len(data.get("ergebnisliste") or []) < BA_PAGE_SIZE:
-            break
-    return vacancies
+    async def fetch_page(page: int) -> dict:
+        return await fetch_ba_page(client, page)
+
+    return await collect_pages(
+        fetch_page,
+        parse_ba_response,
+        lambda data: len(data.get("ergebnisliste") or []),
+        BA_PAGE_SIZE,
+        max_pages,
+        pause_seconds,
+    )

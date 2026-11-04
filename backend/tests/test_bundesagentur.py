@@ -13,7 +13,7 @@ from app.integrations.bundesagentur import (
     parse_ba_response,
 )
 from app.models import Vacancy
-from app.services.vacancies import refresh_bundesagentur
+from app.services.vacancies import refresh_source
 
 # A job as the board really returns it (fields we don't read are left out)
 PNEUHAGE_JOB = {
@@ -60,7 +60,7 @@ def no_real_pauses(monkeypatch):
     async def fake_sleep(seconds):
         pass
 
-    monkeypatch.setattr("app.integrations.bundesagentur.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("app.integrations.base.asyncio.sleep", fake_sleep)
 
 
 def test_real_job_is_parsed():
@@ -172,7 +172,7 @@ async def test_refresh_saves_the_jobs(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, json=data))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_bundesagentur(session, client)
+        result = await refresh_source(session, client, "bundesagentur")
 
     rows = list(await session.scalars(select(Vacancy)))
     assert result.inserted == 1  # same title and company, no city: the second is a duplicate
@@ -181,13 +181,13 @@ async def test_refresh_saves_the_jobs(session):
 
 
 @respx.mock
-async def test_refresh_reports_a_failure_as_germany(session):
+async def test_refresh_reports_a_failure_by_source_name(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(403))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_bundesagentur(session, client)
+        result = await refresh_source(session, client, "bundesagentur")
 
-    assert result.failed_countries == ["DE"]
+    assert result.failed == ["bundesagentur"]
     assert result.inserted == 0
 
 
@@ -209,9 +209,9 @@ async def test_refresh_reports_a_page_that_is_not_json_as_a_failure(session):
     respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
 
     async with httpx.AsyncClient() as client:
-        result = await refresh_bundesagentur(session, client)
+        result = await refresh_source(session, client, "bundesagentur")
 
-    assert result.failed_countries == ["DE"]
+    assert result.failed == ["bundesagentur"]
 
 
 def test_training_place_without_a_title_uses_the_occupation():

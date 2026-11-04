@@ -7,10 +7,11 @@ import respx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
+from app.integrations.bundesagentur import BA_SEARCH_URL
 from app.integrations.esco import ESCO_OCCUPATION_URL
 from app.integrations.eures import EURES_SEARCH_URL
 from app.models import ApiCache, Vacancy
-from app.services.vacancies import refresh_eures
+from app.services.vacancies import refresh_all, refresh_eures
 
 
 def eures_answer(request: httpx.Request) -> httpx.Response:
@@ -65,7 +66,7 @@ async def test_no_codes_means_all_27_countries(session):
 
     assert route.call_count == 27
     assert result.inserted == 26
-    assert result.failed_countries == ["MT"]
+    assert result.failed == ["MT"]
 
 
 @respx.mock
@@ -75,7 +76,7 @@ async def test_failed_country_does_not_stop_the_others(session):
     async with httpx.AsyncClient() as client:
         result = await refresh_eures(session, client, ["DE", "MT", "PL"])
 
-    assert result.failed_countries == ["MT"]
+    assert result.failed == ["MT"]
     assert await saved_countries(session) == ["DE", "PL"]
 
 
@@ -86,7 +87,7 @@ async def test_network_error_counts_as_a_failed_country(session):
     async with httpx.AsyncClient() as client:
         result = await refresh_eures(session, client, ["PL"])
 
-    assert result.failed_countries == ["PL"]
+    assert result.failed == ["PL"]
     assert result.inserted == 0
 
 
@@ -150,5 +151,41 @@ async def test_page_that_is_not_json_fails_one_country_and_the_others_continue(s
     async with httpx.AsyncClient() as client:
         result = await refresh_eures(session, client, ["DE", "MT", "PL"])
 
-    assert result.failed_countries == ["MT"]
+    assert result.failed == ["MT"]
     assert await saved_countries(session) == ["DE", "PL"]
+
+
+@respx.mock
+async def test_refresh_all_reads_national_boards_before_eures(session):
+    calls = []
+
+    def eures(request: httpx.Request) -> httpx.Response:
+        calls.append("eures")
+        return eures_answer(request)
+
+    def board(request: httpx.Request) -> httpx.Response:
+        calls.append("board")
+        return httpx.Response(200, json={"ergebnisliste": []})
+
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures)
+    respx.get(BA_SEARCH_URL).mock(side_effect=board)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_all(session, client)
+
+    assert calls[0] == "board"
+    assert calls.count("eures") == 27
+    assert result.inserted == 26
+    assert result.failed == ["MT"]
+
+
+@respx.mock
+async def test_refresh_all_carries_on_when_a_board_fails(session):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+    respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(503))
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_all(session, client)
+
+    assert result.failed == ["bundesagentur", "MT"]
+    assert result.inserted == 26
