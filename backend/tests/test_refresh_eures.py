@@ -1,0 +1,120 @@
+import json
+from datetime import UTC, datetime, timedelta
+
+import httpx
+import pytest
+import respx
+from sqlalchemy import delete, select
+
+from app.integrations.eures import EURES_SEARCH_URL
+from app.models import Vacancy
+from app.services.vacancies import refresh_eures
+
+
+def eures_answer(request: httpx.Request) -> httpx.Response:
+    """A fake EURES: one job per country, except that Malta is down."""
+    code = json.loads(request.content)["locationCodes"][0]
+    if code == "mt":
+        return httpx.Response(500)
+    created = int((datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000)
+    job = {"id": f"job-{code}", "title": "Python Developer", "creationDate": created}
+    return httpx.Response(200, json={"jvs": [job]})
+
+
+@pytest.fixture(autouse=True)
+async def empty_vacancies(session):
+    await session.execute(delete(Vacancy))
+    await session.commit()
+
+
+@pytest.fixture(autouse=True)
+def pauses(monkeypatch):
+    recorded = []
+
+    async def fake_sleep(seconds):
+        recorded.append(seconds)
+
+    monkeypatch.setattr("app.services.vacancies.asyncio.sleep", fake_sleep)
+    return recorded
+
+
+async def saved_countries(session) -> list[str]:
+    return list(await session.scalars(select(Vacancy.country_code).order_by(Vacancy.country_code)))
+
+
+@respx.mock
+async def test_saves_jobs_of_the_chosen_countries(session):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client, ["PL", "GR"])
+
+    assert result.inserted == 2
+    assert await saved_countries(session) == ["GR", "PL"]
+
+
+@respx.mock
+async def test_no_codes_means_all_27_countries(session):
+    route = respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client)
+
+    assert route.call_count == 27
+    assert result.inserted == 26
+    assert result.failed_countries == ["MT"]
+
+
+@respx.mock
+async def test_failed_country_does_not_stop_the_others(session):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client, ["DE", "MT", "PL"])
+
+    assert result.failed_countries == ["MT"]
+    assert await saved_countries(session) == ["DE", "PL"]
+
+
+@respx.mock
+async def test_network_error_counts_as_a_failed_country(session):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=httpx.ConnectTimeout("no answer"))
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client, ["PL"])
+
+    assert result.failed_countries == ["PL"]
+    assert result.inserted == 0
+
+
+@respx.mock
+async def test_second_run_updates_instead_of_inserting(session):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        await refresh_eures(session, client, ["PL"])
+        result = await refresh_eures(session, client, ["PL"])
+
+    assert result.inserted == 0
+    assert result.updated == 1
+
+
+@respx.mock
+async def test_pauses_only_between_countries(session, pauses):
+    respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        await refresh_eures(session, client, ["DE", "PL", "GR"], pause_seconds=0.5)
+
+    assert pauses == [0.5, 0.5]
+
+
+@respx.mock
+async def test_unknown_country_code_requests_nothing(session):
+    route = respx.post(EURES_SEARCH_URL).mock(side_effect=eures_answer)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client, ["XX"])
+
+    assert route.call_count == 0
+    assert result.inserted == 0

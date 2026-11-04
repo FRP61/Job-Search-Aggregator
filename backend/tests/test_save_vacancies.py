@@ -8,14 +8,16 @@ from app.models import Industry, Vacancy
 from app.services.vacancies import save_vacancies
 
 
-def make_vacancy(external_id: str = "1", source: str = "eures", title: str = "Python Developer", **fields):
+def make_vacancy(
+    external_id: str = "1", source: str = "eures", title: str = "Python Developer", country_code: str = "DE", **fields
+):
     fields.setdefault("posted_at", datetime(2026, 11, 2, tzinfo=UTC))
     vacancy = NormalizedVacancy(
         source=source,
         external_id=external_id,
         title=title,
         url=f"https://{source}.example/{external_id}",
-        country_code="DE",
+        country_code=country_code,
         company="Volvo",
         **fields,
     )
@@ -181,3 +183,24 @@ async def test_new_job_can_take_a_fingerprint_freed_in_the_same_batch(session):
     assert result.updated == 1
     assert result.inserted == 1
     assert len(await saved_rows(session)) == 2
+
+
+async def test_one_job_in_several_countries_gets_a_row_for_each(session):
+    await save_vacancies(session, [make_vacancy("1", country_code="AT")], {})
+    result = await save_vacancies(session, [make_vacancy("1", country_code="IT")], {})
+
+    rows = await saved_rows(session)
+    assert result.inserted == 1
+    assert result.updated == 0
+    assert [row.country_code for row in rows] == ["AT", "IT"]
+
+
+async def test_second_run_updates_each_country_separately(session):
+    await save_vacancies(session, [make_vacancy("1", country_code="AT", salary_min=1000)], {})
+    await save_vacancies(session, [make_vacancy("1", country_code="IT", salary_min=1000)], {})
+
+    result = await save_vacancies(session, [make_vacancy("1", country_code="IT", salary_min=2000)], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 1
+    assert [(row.country_code, row.salary_min) for row in rows] == [("AT", 1000), ("IT", 2000)]
