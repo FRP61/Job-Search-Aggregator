@@ -120,10 +120,84 @@ async def test_item_has_the_fields_the_frontend_needs(session, client):
     item = (await client.get(URL)).json()["items"][0]
     assert item["title"] == "Python Developer 1"
     assert item["company"] == "Bosch"
-    assert item["country_code"] == "PL"
+    assert item["countries"] == ["PL"]
     assert item["industry"]["slug"] == "it"
     assert item["salary_annual_min_eur"] == 12000
     assert item["salary_annual_max_eur"] is None
     assert item["other_sources"] == []
     assert item["posted_at"] is not None
     assert "description" not in item
+
+
+async def test_job_in_several_countries_comes_once_with_all_of_them(session, client):
+    vacancies = [make_vacancy("multi", code) for code in ("IT", "AT", "ES")] + [make_vacancy("single", "PL")]
+    await save_vacancies(session, vacancies, {})
+
+    data = (await client.get(URL)).json()
+
+    assert data["total"] == 2
+    assert {item["url"].rsplit("/", 1)[1]: item["countries"] for item in data["items"]} == {
+        "multi": ["AT", "ES", "IT"],
+        "single": ["PL"],
+    }
+
+
+async def test_choosing_several_of_its_countries_still_shows_the_job_once(session, client):
+    await save_vacancies(session, [make_vacancy("multi", code) for code in ("IT", "AT", "ES")], {})
+
+    data = (await client.get(URL, params={"country": ["AT", "IT"]})).json()
+
+    assert data["total"] == 1
+    assert data["items"][0]["countries"] == ["AT", "ES", "IT"]
+
+
+async def test_choosing_one_country_lists_the_others_too(session, client):
+    await save_vacancies(session, [make_vacancy("multi", code) for code in ("IT", "AT")], {})
+
+    data = (await client.get(URL, params={"country": "AT"})).json()
+
+    assert data["items"][0]["countries"] == ["AT", "IT"]
+
+
+async def test_country_where_the_job_is_too_old_is_not_listed(session, client):
+    vacancies = [make_vacancy("multi", "AT"), make_vacancy("multi", "IT", posted_at=days_ago(31))]
+    await save_vacancies(session, vacancies, {})
+
+    assert (await client.get(URL)).json()["items"][0]["countries"] == ["AT"]
+
+
+async def test_paging_counts_jobs_not_rows(session, client):
+    vacancies = []
+    for i in range(3):
+        vacancies += [make_vacancy(f"job{i}", code, posted_at=days_ago(i + 1)) for code in ("AT", "IT")]
+    await save_vacancies(session, vacancies, {})
+
+    first = (await client.get(URL, params={"page": 1, "page_size": 2})).json()
+    second = (await client.get(URL, params={"page": 2, "page_size": 2})).json()
+
+    assert first["total"] == 3
+    assert [item["url"].rsplit("/", 1)[1] for item in first["items"]] == ["job0", "job1"]
+    assert [item["url"].rsplit("/", 1)[1] for item in second["items"]] == ["job2"]
+
+
+async def test_same_id_from_different_boards_stays_separate(session, client):
+    other_board = NormalizedVacancy(
+        source="adzuna",
+        external_id="1",
+        title="Cook",
+        url="https://adzuna.example/1",
+        country_code="DE",
+        posted_at=days_ago(1),
+    )
+    await save_vacancies(session, [make_vacancy("1", "DE"), fill_computed_fields(other_board)], {})
+
+    assert (await client.get(URL)).json()["total"] == 2
+
+
+async def test_page_past_the_end_is_empty(session, client):
+    await save_vacancies(session, [make_vacancy("1")], {})
+
+    data = (await client.get(URL, params={"page": 5})).json()
+
+    assert data["total"] == 1
+    assert data["items"] == []

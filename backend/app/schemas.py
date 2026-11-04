@@ -44,7 +44,7 @@ class VacancyOut(ORMModel):
     source: str
     title: str
     company: str | None
-    country_code: str
+    countries: list[str] = []
     city: str | None
     url: str
     remote: bool
