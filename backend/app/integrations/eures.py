@@ -46,3 +46,26 @@ def eures_location_code(country_code: str):
         return "el"
 
     return country_code.lower()
+
+def build_eures_search_body(country_code: str, page: int):
+    return {
+    "resultsPerPage": 50,
+    "page": page,
+    "sortSearch": "MOST_RECENT",
+    "keywords": [],
+    "locationCodes": [eures_location_code(country_code)],
+    "positionScheduleCodes": [],
+    "positionOfferingCodes": [],
+    "offeringCodes": [],
+    "educationAndQualificationLevelCodes": [],
+    "occupationUris": [],
+    "sectorCodes": [],
+    "publicationPeriod": None,
+    "euresFlagCodes": [],
+    "otherBenefitsCodes": [],
+    "requiredExperienceCodes": [],
+    "requiredLanguages": [],
+    "minNumberPost": None,
+    "sessionId": "x",
+    }
+
