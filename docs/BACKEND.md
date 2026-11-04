@@ -234,7 +234,8 @@ So identical vacancies with different spelling get the same fingerprint.
 | The same `source`, id and country already exist | Update the row | `updated` |
 | A new record with no matches | Insert | `inserted` |
 | Same fingerprint as a row older than 30 days, and the vacancy is fresh | The row becomes the new posting | `updated` |
-| Same fingerprint, same board | Skip | `skipped` |
+| Same fingerprint, same board, both texts present and different | Another job: a new row whose fingerprint includes the text | `inserted` |
+| Same fingerprint, same board, same text or a text is missing | Skip | `skipped` |
 | Same fingerprint, another board | Add a link | `merged` |
 | Another board, no city to compare, dates within 3 days, no copy from that board yet | Add a link | `merged` |
 

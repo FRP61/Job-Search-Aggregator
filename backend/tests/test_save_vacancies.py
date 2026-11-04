@@ -529,3 +529,143 @@ async def test_implausible_yearly_salary_is_not_shown(session, amount, period, e
     row = (await saved_rows(session))[0]
     assert row.salary_annual_min_eur == expected
     assert row.salary_min == amount
+
+
+# A staffing agency posts many jobs as "shop assistant" in one region, only the text differs
+
+
+async def test_same_title_and_place_with_another_text_is_another_job(session):
+    result = await save_vacancies(
+        session,
+        [
+            make_vacancy("1", location="ITC4C", description="Packing food in Melzo"),
+            make_vacancy("2", location="ITC4C", description="Loading CNC machines in Milan"),
+        ],
+        {},
+    )
+
+    assert result.inserted == 2
+    assert result.skipped == 0
+    assert [row.external_id for row in await saved_rows(session)] == ["1", "2"]
+
+
+async def test_same_text_on_one_board_is_a_duplicate(session):
+    result = await save_vacancies(
+        session,
+        [make_vacancy("1", description="Packing food"), make_vacancy("2", description="Packing food")],
+        {},
+    )
+
+    assert result.inserted == 1
+    assert result.skipped == 1
+
+
+async def test_spaces_and_line_breaks_do_not_make_another_job(session):
+    result = await save_vacancies(
+        session,
+        [make_vacancy("1", description="Packing food"), make_vacancy("2", description=" Packing\n  food ")],
+        {},
+    )
+
+    assert result.skipped == 1
+
+
+async def test_copy_of_the_second_job_is_a_duplicate_too(session):
+    """Comparing only with the first row would add every copy of the second one."""
+    result = await save_vacancies(
+        session,
+        [
+            make_vacancy("1", description="Packing food"),
+            make_vacancy("2", description="Loading machines"),
+            make_vacancy("3", description="Loading machines"),
+        ],
+        {},
+    )
+
+    assert result.inserted == 2
+    assert result.skipped == 1
+
+
+async def test_copy_of_the_second_job_in_a_later_refresh_is_a_duplicate(session):
+    await save_vacancies(
+        session,
+        [make_vacancy("1", description="Packing food"), make_vacancy("2", description="Loading machines")],
+        {},
+    )
+
+    result = await save_vacancies(session, [make_vacancy("3", description="Loading machines")], {})
+
+    assert result.skipped == 1
+    assert len(await saved_rows(session)) == 2
+
+
+@pytest.mark.parametrize(("first", "second"), [(None, "Packing food"), ("Packing food", None), (None, None)])
+async def test_missing_text_does_not_prove_another_job(session, first, second):
+    """Bundesagentur and justjoin.it search results have no text at all."""
+    result = await save_vacancies(
+        session, [make_vacancy("1", description=first), make_vacancy("2", description=second)], {}
+    )
+
+    assert result.skipped == 1
+    assert len(await saved_rows(session)) == 1
+
+
+async def test_second_refresh_updates_both_jobs_and_adds_nothing(session):
+    def jobs():
+        return [make_vacancy("1", description="Packing food"), make_vacancy("2", description="Loading machines")]
+
+    await save_vacancies(session, jobs(), {})
+    fingerprints = [row.fingerprint for row in await saved_rows(session)]
+
+    result = await save_vacancies(session, jobs(), {})
+
+    assert result.updated == 2
+    assert result.inserted == 0
+    assert [row.fingerprint for row in await saved_rows(session)] == fingerprints
+
+
+async def test_saving_does_not_change_the_vacancy_it_was_given(session):
+    first = make_vacancy("1", description="Packing food")
+    second = make_vacancy("2", description="Loading machines")
+    fingerprint = second.fingerprint
+
+    await save_vacancies(session, [first, second], {})
+
+    assert second.fingerprint == fingerprint
+
+
+async def test_text_is_not_compared_between_boards(session):
+    """Boards write the same job differently, so another board's copy stays a link."""
+    await save_vacancies(session, [make_vacancy("1", source="eures", description="Text on EURES")], {})
+
+    result = await save_vacancies(session, [make_vacancy("x", source="adzuna", description="Text on Adzuna")], {})
+
+    assert result.merged == 1
+    assert len(await saved_rows(session)) == 1
+
+
+async def test_repost_of_the_second_job_replaces_its_expired_row(session):
+    await save_vacancies(
+        session,
+        [
+            make_vacancy("1", posted_at=days_ago(1), description="Packing food"),
+            make_vacancy("2", posted_at=days_ago(40), description="Loading machines"),
+        ],
+        {},
+    )
+
+    result = await save_vacancies(session, [make_vacancy("3", posted_at=days_ago(1), description="Loading machines")], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 1
+    assert [row.external_id for row in rows] == ["1", "3"]
+
+
+async def test_new_text_after_the_first_row_expired_still_replaces_it(session):
+    await save_vacancies(session, [make_vacancy("old", posted_at=days_ago(40), description="Old text")], {})
+
+    result = await save_vacancies(session, [make_vacancy("new", posted_at=days_ago(1), description="New text")], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 1
+    assert [row.external_id for row in rows] == ["new"]

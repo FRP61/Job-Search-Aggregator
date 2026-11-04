@@ -1,7 +1,8 @@
 """Save vacancies from job boards into the database without creating duplicates."""
 
 import asyncio
-from dataclasses import dataclass, field
+import hashlib
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -102,6 +103,7 @@ async def _load_existing_rows(session: AsyncSession, vacancies: list[NormalizedV
         select(Vacancy).where(
             Vacancy.external_id.in_([vacancy.external_id for vacancy in vacancies])
             | Vacancy.fingerprint.in_([vacancy.fingerprint for vacancy in vacancies])
+            | Vacancy.fingerprint.in_([_fingerprint_with_text(vacancy) for vacancy in vacancies])
             | Vacancy.loose_fingerprint.in_([v.loose_fingerprint for v in vacancies if v.loose_fingerprint])
         )
     )
@@ -133,6 +135,28 @@ def _is_repost_of_expired_row(row: Vacancy, vacancy: NormalizedVacancy, now: dat
     if row.fingerprint != vacancy.fingerprint or vacancy.is_too_old(now):
         return False
     return row.posted_at is None or now - _as_utc(row.posted_at) > timedelta(days=MAX_VACANCY_AGE_DAYS)
+
+
+def _clean_text(text: str | None) -> str:
+    """The text without differences in spaces and line breaks."""
+    return " ".join((text or "").split())
+
+
+def _fingerprint_with_text(vacancy: NormalizedVacancy) -> str:
+    """The fingerprint of a job that shares its title, company and place with another job on its board."""
+    raw = f"{vacancy.fingerprint}|{_clean_text(vacancy.description)}"
+    return hashlib.sha1(raw.encode()).hexdigest()
+
+
+def _is_another_job_on_the_same_board(twin: Vacancy, vacancy: NormalizedVacancy) -> bool:
+    """True if a row with the same fingerprint is another job, because its text is different.
+
+    A staffing agency can post dozens of jobs with one title in one region: real
+    data had 67 on one fingerprint. A missing text proves nothing, so it doesn't count.
+    """
+    if twin.source != vacancy.source or not twin.description or not vacancy.description:
+        return False
+    return _clean_text(twin.description) != _clean_text(vacancy.description)
 
 
 def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
@@ -177,6 +201,8 @@ async def save_vacancies(
     Another source, no city to compare, close
     publication dates                         -> add a link to other_sources (merged)
     Same fingerprint as an expired row        -> the row becomes this repost (updated)
+    Same fingerprint and source, another text -> another job: compared by its text instead,
+                                                 then the same rules apply
     Same fingerprint, same source or link     -> nothing new (skipped)
     Otherwise                                 -> new row (inserted)
     """
@@ -199,6 +225,15 @@ async def save_vacancies(
         key = _row_key(vacancy.source, vacancy.external_id, vacancy.country_code)
         row = by_key.get(key)
         twin = by_fingerprint.get(vacancy.fingerprint)
+        if (
+            row is None
+            and twin is not None
+            and not _is_repost_of_expired_row(twin, vacancy, now)
+            and _is_another_job_on_the_same_board(twin, vacancy)
+        ):
+            # A copy, not a change: the caller's vacancy keeps its usual fingerprint
+            vacancy = replace(vacancy, fingerprint=_fingerprint_with_text(vacancy))
+            twin = by_fingerprint.get(vacancy.fingerprint)
         if row is None and twin is None:
             twin = _find_twin_without_city(by_loose_fingerprint.get(vacancy.loose_fingerprint, []), vacancy)
 

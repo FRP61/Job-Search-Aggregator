@@ -9,7 +9,7 @@ of the fixes it led to.
 
 | Check | How |
 |---|---|
-| Automated tests | 374 tests with fake responses based on real ones; in CI on PostgreSQL |
+| Automated tests | 387 tests with fake responses based on real ones; in CI on PostgreSQL |
 | Migrations | Applied, compared with the models and rolled back in CI on PostgreSQL |
 | Full refresh | All sources and 27 countries, on a temporary **SQLite** database |
 | Search speed | Requests to the real API code on the resulting database |
@@ -79,11 +79,31 @@ Walking the first 500 results across pages gave no repeated links.
 **The fixes were rerun only in part:** Bundesagentur, 40 pages of EURES for Germany, and justjoin.it. The full
 refresh wasn't repeated, so the full results above come from before the fixes.
 
+## Skipped vacancies check
+
+Many skipped vacancies were real jobs. A sample of live EURES data, downloaded on 2026-11-04 (Italy 200 pages,
+Poland 100 pages), was saved through the old and the new code. Only vacancies under 30 days old were saved, as in a
+real refresh, into a temporary SQLite database.
+
+| Country | Fresh vacancies | Skipped, old code | Skipped, new code | Rows, old code | Rows, new code |
+|---|---|---|---|---|---|
+| Italy | 4,338 | 2,331 | 411 | 2,007 | 3,927 |
+| Poland | 3,518 | 75 | 27 | 3,437 | 3,485 |
+
+- **Cause:** one staffing agency, GI GROUP, gave about 90% of the skips in the Italian sample, posting many jobs under one
+  occupation name in one region. In Poland, separate county labour offices share the name "Powiatowy Urząd Pracy".
+- **Fix:** on the same board, a vacancy is a duplicate only if its description also matches, ignoring spaces and line
+  breaks. A missing description proves nothing, so that vacancy is still skipped.
+- **Repeat runs:** two more runs on the same data added no rows.
+- **Limits:** it's two countries, and Italy was chosen as the worst case. Six pairs were read by hand, and they weren't a
+  random sample. The full refresh wasn't repeated, so the 10,293 above is from the old code.
+
 ## Known open questions
 
 | Question | Why it matters | Status |
 |---|---|---|
-| **Are skipped vacancies real duplicates?** 10,293 were skipped, for example 2,331 in Italy, where one staffing agency has dozens of rows with the same title. | Skipped vacancies aren't shown, so real jobs could be lost | Not checked. They have the same title, company and place, or no place: 13,200 EURES rows have no region. Samples are needed |
+| **Are the remaining skipped vacancies real duplicates?** | Skipped vacancies aren't shown, so real jobs could be lost | Partly checked, see above. Bundesagentur and justjoin.it search results have no description, so their skips can't be checked this way |
+| **Do nearly identical texts show as separate cards?** | The same job reposted with a small edit now appears twice | Yes, by choice: an extra card is better than a lost job. Not counted across all countries |
 | **Are linked copies real copies?** | A false link hides a job | Titles and companies match by construction, and dates are within 3 days. A chain branch published the same day can still be linked. No sample was compared by hand |
 | **Is the 3-day limit right?** | Too strict leaves duplicates, too loose hides jobs | An estimate |
 | **Is the job coverage enough?** | Page limits mean large countries are read only in part: German EURES rows were almost all from the last 3 days | Daily runs should accumulate them, but that hasn't been tested |
