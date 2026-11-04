@@ -112,3 +112,48 @@ def test_job_with_an_isco_industry_needs_no_lookup():
 def test_job_without_an_isco_industry_keeps_occupations_for_the_lookup():
     job = job_with_codes([ISCO + "6111", OCCUPATION])
     assert parse_eures_job(job, "DE").occupation_uris == [OCCUPATION]
+
+
+def job_in_regions(location_map: dict, company: str = "Euromaster GmbH") -> dict:
+    return {
+        "id": "1",
+        "title": "Innendienstverkäufer",
+        "creationDate": 1793622360191,
+        "employer": {"name": company},
+        "locationMap": location_map,
+    }
+
+
+def test_location_is_the_region_code():
+    assert parse_eures_job(job_in_regions({"DE": ["DE124"]}), "DE").location == "DE124"
+
+
+def test_several_regions_are_sorted_and_joined():
+    vacancy = parse_eures_job(job_in_regions({"DE": ["DED", "DE40", "DE300"]}), "DE")
+    assert vacancy.location == "DE300,DE40,DED"
+
+
+def test_only_the_regions_of_the_asked_country_count():
+    vacancy = parse_eures_job(job_in_regions({"DE": ["DE124"], "AT": ["AT13"]}), "AT")
+    assert vacancy.location == "AT13"
+
+
+def test_greece_is_under_el_in_the_location_map():
+    assert parse_eures_job(job_in_regions({"EL": ["EL30"]}), "GR").location == "EL30"
+
+
+@pytest.mark.parametrize("location_map", [{"DE": [None]}, {"DE": []}, {}, None])
+def test_no_region_gives_no_location(location_map):
+    assert parse_eures_job(job_in_regions(location_map), "DE").location is None
+
+
+def test_same_job_in_different_regions_has_different_fingerprints():
+    first = parse_eures_job(job_in_regions({"DE": ["DE124"]}), "DE")
+    second = parse_eures_job(job_in_regions({"DE": ["DEB35"]}), "DE")
+    assert first.fingerprint != second.fingerprint
+
+
+def test_region_does_not_change_the_loose_fingerprint():
+    first = parse_eures_job(job_in_regions({"DE": ["DE124"]}), "DE")
+    second = parse_eures_job(job_in_regions({"DE": ["DEB35"]}), "DE")
+    assert first.loose_fingerprint == second.loose_fingerprint

@@ -25,6 +25,8 @@ class NormalizedVacancy:
     salary_currency: str | None = None
     salary_period: str | None = None
     city: str | None = None
+    # Where the job is when the board gives no city, like a region code
+    location: str | None = None
     remote: bool = False
     fingerprint: str = ""
     # The title as other boards write it, if it differs from ours
@@ -47,7 +49,8 @@ def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
 
     if vacancy.industry is None:
         vacancy.industry = classify_industry(vacancy.title)
-    vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, vacancy.city)
+    place = vacancy.city or vacancy.location
+    vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, place)
     if vacancy.company:
         title = vacancy.match_title or vacancy.title
         vacancy.loose_fingerprint = fingerprint(title, vacancy.company, vacancy.country_code, None)

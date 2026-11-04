@@ -330,3 +330,18 @@ async def test_date_check_works_inside_one_batch(session):
     result = await save_vacancies(session, [ba_job(), far], {})
 
     assert result.inserted == 2
+
+
+async def test_same_job_in_two_regions_of_one_board_stays_separate(session):
+    first = eures_job("e1", REAL_EURES_TITLE)
+    first.location = "DE124"
+    second = eures_job("e2", REAL_EURES_TITLE)
+    second.location = "DEB35"
+    fill_computed_fields(first)
+    fill_computed_fields(second)
+
+    result = await save_vacancies(session, [first, second], {})
+
+    rows = await saved_rows(session)
+    assert result.inserted == 2
+    assert [row.location for row in rows] == ["DE124", "DEB35"]

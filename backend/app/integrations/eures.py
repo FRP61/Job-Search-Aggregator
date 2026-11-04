@@ -33,6 +33,15 @@ def eures_industry(job: dict) -> str | None:
     return None
 
 
+def eures_location(job: dict, country_code: str) -> str | None:
+    """The job's region codes in this country, like "DE402", sorted and joined by commas.
+
+    The map uses EURES's own country codes, so Greece is under "EL", not "GR".
+    """
+    codes = (job.get("locationMap") or {}).get(eures_location_code(country_code).upper()) or []
+    return ",".join(sorted(code for code in codes if code)) or None
+
+
 def eures_occupation_uris(job: dict) -> list[str]:
     """The job's links to ESCO occupations, which need a lookup to become an ISCO code."""
     return [uri for uri in job.get("jobCategoriesCodes") or [] if uri.startswith(OCCUPATION_URI_PREFIX)]
@@ -63,6 +72,7 @@ def parse_eures_job(job: dict, country_code: str):
         occupation_uris=eures_occupation_uris(job) if industry is None else [],
         description=job.get("description"),
         posted_at=eures_posted_at(job),
+        location=eures_location(job, country_code),
     )
 
     return fill_computed_fields(vacancy)

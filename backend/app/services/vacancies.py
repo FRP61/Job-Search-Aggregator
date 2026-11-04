@@ -43,6 +43,7 @@ def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | No
     row.country_code = vacancy.country_code
     row.industry_id = industry_id
     row.city = vacancy.city[:255] if vacancy.city else None
+    row.location = vacancy.location[:500] if vacancy.location else None
     row.description = vacancy.description
     row.url = vacancy.url[:2000]
     row.remote = vacancy.remote
