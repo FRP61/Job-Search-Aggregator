@@ -444,3 +444,18 @@ async def test_job_without_a_company_is_updated_by_its_id(session):
 
     assert result.updated == 1
     assert len(await saved_rows(session)) == 1
+
+
+async def test_row_can_take_a_fingerprint_another_row_gives_up_in_the_same_batch(session):
+    first = make_vacancy("1", title="Python Developer")
+    second = make_vacancy("2", title="Java Developer")
+    await save_vacancies(session, [first, second], {})
+
+    # Row 2 leaves "Java Developer" first, then row 1 takes it over
+    second_renamed = make_vacancy("2", title="Golang Developer")
+    first_renamed = make_vacancy("1", title="Java Developer")
+    result = await save_vacancies(session, [second_renamed, first_renamed], {})
+
+    rows = await saved_rows(session)
+    assert result.updated == 2
+    assert [row.fingerprint for row in rows] == [first_renamed.fingerprint, second_renamed.fingerprint]

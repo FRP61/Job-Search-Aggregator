@@ -174,6 +174,9 @@ async def save_vacancies(
                 del by_fingerprint[row.fingerprint]
                 row.fingerprint = vacancy.fingerprint
                 by_fingerprint[row.fingerprint] = row
+                # Write it now: updates are sent in id order at the end, so a row with
+                # a lower id taking this row's old fingerprint would break uniqueness.
+                await session.flush()
             _copy_fields(row, vacancy, industry_id, rates)
             result.updated += 1
         elif twin is None:
