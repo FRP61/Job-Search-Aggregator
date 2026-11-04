@@ -1,11 +1,14 @@
 """EURES, the EU job portal: public employment services of all 27 member states."""
 
+import asyncio
+
 import httpx
 
 from app.integrations.base import fill_computed_fields, NormalizedVacancy
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
 EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
+EURES_PAGE_SIZE = 50
 
 
 def parse_eures_job(job: dict, country_code: str):
@@ -52,7 +55,7 @@ def eures_location_code(country_code: str):
 
 def build_eures_search_body(country_code: str, page: int):
     return {
-    "resultsPerPage": 50,
+    "resultsPerPage": EURES_PAGE_SIZE,
     "page": page,
     "sortSearch": "MOST_RECENT",
     "keywords": [],
@@ -83,4 +86,24 @@ async def fetch_eures_page(client: httpx.AsyncClient, country_code: str, page: i
     response = await client.post(EURES_SEARCH_URL, json=body)
     response.raise_for_status()
     return response.json()
+
+
+async def fetch_eures_country(
+    client: httpx.AsyncClient, country_code: str, max_pages: int = 20, pause_seconds: float = 0.2
+) -> list[NormalizedVacancy]:
+    """Collect a country's newest jobs, page by page, up to max_pages pages.
+
+    A short page means it was the last one, so no extra request is made.
+    An HTTP error on any page raises, and the pages already read are dropped.
+    The pause goes between pages, so a one-page country doesn't wait at all.
+    """
+    vacancies = []
+    for page in range(1, max_pages + 1):
+        if page > 1:
+            await asyncio.sleep(pause_seconds)
+        data = await fetch_eures_page(client, country_code, page)
+        vacancies.extend(parse_eures_response(data, country_code))
+        if len(data.get("jvs", [])) < EURES_PAGE_SIZE:
+            break
+    return vacancies
 
