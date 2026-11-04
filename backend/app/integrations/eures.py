@@ -1,8 +1,11 @@
 """EURES, the EU job portal: public employment services of all 27 member states."""
 
+import httpx
+
 from app.integrations.base import fill_computed_fields, NormalizedVacancy
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
+EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 
 
 def parse_eures_job(job: dict, country_code: str):
@@ -68,4 +71,16 @@ def build_eures_search_body(country_code: str, page: int):
     "minNumberPost": None,
     "sessionId": "x",
     }
+
+
+async def fetch_eures_page(client: httpx.AsyncClient, country_code: str, page: int) -> dict:
+    """Ask EURES for one page of one country's jobs and return the raw JSON.
+
+    An HTTP error (EURES is down, rate limit) raises httpx.HTTPStatusError,
+    so a failed request is never mistaken for "this country has no jobs".
+    """
+    body = build_eures_search_body(country_code, page)
+    response = await client.post(EURES_SEARCH_URL, json=body)
+    response.raise_for_status()
+    return response.json()
 
