@@ -2,11 +2,21 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+
+import httpx
+
 from app.services.classify import classify_industry
 from app.services.normalize import fingerprint
 from app.services.salary import to_annual, to_eur
 
 MAX_VACANCY_AGE_DAYS = 30
+
+# What a job with a missing or malformed field can raise while it is parsed.
+# One broken job is skipped, it must not stop the whole download.
+JOB_PARSE_ERRORS = (KeyError, TypeError, ValueError, AttributeError, OverflowError, OSError)
+# A failed request, or an answer that isn't JSON, like a maintenance page with status 200.
+# json.JSONDecodeError is a ValueError.
+REQUEST_ERRORS = (httpx.HTTPError, ValueError)
 
 
 @dataclass

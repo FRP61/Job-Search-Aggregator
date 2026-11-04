@@ -1,3 +1,5 @@
+import pytest
+
 from app.integrations.eures import parse_eures_response
 
 DATE = 1793622360191
@@ -41,4 +43,19 @@ def test_broken_job_is_skipped_and_the_rest_are_kept():
 def test_jobs_without_a_date_are_skipped():
     data = {"jvs": [JOB_A, JOB_WITHOUT_DATE, JOB_WITH_EMPTY_DATE, JOB_B]}
     vacancies = parse_eures_response(data, "DE")
+    assert [v.external_id for v in vacancies] == ["a", "b"]
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        {"id": "x", "title": None, "creationDate": DATE},
+        {"id": "x", "title": "Koch", "creationDate": 10**30},
+        {"id": "x", "title": "Koch", "creationDate": "yesterday"},
+        {"id": "x", "title": "Koch", "creationDate": DATE, "employer": "not an object"},
+        {"id": "x", "title": "Koch", "creationDate": DATE, "locationMap": "not an object"},
+    ],
+)
+def test_malformed_job_is_skipped_and_the_rest_are_kept(broken):
+    vacancies = parse_eures_response({"jvs": [JOB_A, broken, JOB_B]}, "DE")
     assert [v.external_id for v in vacancies] == ["a", "b"]

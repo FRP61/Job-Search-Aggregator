@@ -6,7 +6,7 @@ import logging
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.base import NormalizedVacancy
+from app.integrations.base import REQUEST_ERRORS, NormalizedVacancy
 from app.services.cache import cache_get_many, cache_key, cache_set
 from app.services.classify import industry_from_isco
 
@@ -53,7 +53,7 @@ async def resolve_isco_codes(
         asked += 1
         try:
             code = await fetch_isco_code(client, uri)
-        except httpx.HTTPError as error:
+        except REQUEST_ERRORS as error:
             logger.warning("ESCO lookup stopped, %d links unresolved: %r", len(keys) - len(codes), error)
             break
         if code is not None:

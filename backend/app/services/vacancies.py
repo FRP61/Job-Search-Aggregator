@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.base import NormalizedVacancy, annual_max_eur, annual_min_eur
+from app.integrations.base import REQUEST_ERRORS, NormalizedVacancy, annual_max_eur, annual_min_eur
 from app.integrations.bundesagentur import fetch_ba_jobs
 from app.integrations.esco import apply_occupation_industries
 from app.integrations.eures import fetch_eures_country
@@ -201,7 +201,7 @@ async def refresh_eures(
             await asyncio.sleep(pause_seconds)
         try:
             vacancies = await fetch_eures_country(client, code, max_pages, pause_seconds)
-        except httpx.HTTPError:
+        except REQUEST_ERRORS:
             total.failed_countries.append(code)
             continue
         await apply_occupation_industries(session, client, vacancies, pause_seconds)
@@ -219,6 +219,6 @@ async def refresh_bundesagentur(
     """
     try:
         vacancies = await fetch_ba_jobs(client, max_pages, pause_seconds)
-    except httpx.HTTPError:
+    except REQUEST_ERRORS:
         return SaveResult(failed_countries=["DE"])
     return await save_vacancies(session, vacancies, {})

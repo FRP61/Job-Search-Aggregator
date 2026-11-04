@@ -222,3 +222,14 @@ async def test_cache_set_replaces_an_old_value(session):
 
 def test_cache_key_fits_the_column():
     assert len(cache_key("http://data.europa.eu/esco/occupation/" + "x" * 500)) == 64
+
+
+@respx.mock
+async def test_esco_page_that_is_not_json_keeps_the_guess(session):
+    respx.get(ESCO_OCCUPATION_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
+    vacancy = make_vacancy([BOOKKEEPER], industry="sales")
+
+    async with httpx.AsyncClient() as client:
+        await apply_occupation_industries(session, client, [vacancy])
+
+    assert vacancy.industry == "sales"

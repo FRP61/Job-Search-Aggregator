@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.integrations.base import fill_computed_fields, NormalizedVacancy
+from app.integrations.base import JOB_PARSE_ERRORS, fill_computed_fields, NormalizedVacancy
 from app.services.classify import industry_from_isco
 
 EURES_JOB_URL = "https://europa.eu/eures/portal/jv-se/jv-details/{job_id}?lang=en"
@@ -84,7 +84,7 @@ def parse_eures_response(data: dict, country_code: str):
     for job in data.get("jvs", []):
         try:
             vacancy = parse_eures_job(job, country_code)
-        except (KeyError, TypeError):  # a required field is missing or empty
+        except JOB_PARSE_ERRORS:
             continue
         vacancies.append(vacancy)
     return vacancies

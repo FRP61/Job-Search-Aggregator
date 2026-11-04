@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.integrations.base import NormalizedVacancy, fill_computed_fields
+from app.integrations.base import JOB_PARSE_ERRORS, NormalizedVacancy, fill_computed_fields
 from app.services.classify import classify_industry
 
 BA_SEARCH_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs"
@@ -66,11 +66,10 @@ def parse_ba_response(data: dict) -> list[NormalizedVacancy]:
     """Turn a search response into vacancies, skipping broken jobs and jobs abroad."""
     vacancies = []
     for job in data.get("ergebnisliste") or []:
-        if ba_address(job).get("land", BA_GERMANY) != BA_GERMANY:
-            continue
         try:
-            vacancies.append(parse_ba_job(job))
-        except (KeyError, TypeError, ValueError):  # a required field is missing or malformed
+            if ba_address(job).get("land", BA_GERMANY) == BA_GERMANY:
+                vacancies.append(parse_ba_job(job))
+        except JOB_PARSE_ERRORS:
             continue
     return vacancies
 

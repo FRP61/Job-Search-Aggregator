@@ -136,3 +136,19 @@ async def test_industry_of_a_saved_job_comes_from_its_occupation(session):
 
     row = await session.scalar(select(Vacancy).options(selectinload(Vacancy.industry)))
     assert row.industry.slug == "finance"
+
+
+@respx.mock
+async def test_page_that_is_not_json_fails_one_country_and_the_others_continue(session):
+    def answer(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content)["locationCodes"] == ["mt"]:
+            return httpx.Response(200, text="<html>maintenance</html>")
+        return eures_answer(request)
+
+    respx.post(EURES_SEARCH_URL).mock(side_effect=answer)
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_eures(session, client, ["DE", "MT", "PL"])
+
+    assert result.failed_countries == ["MT"]
+    assert await saved_countries(session) == ["DE", "PL"]

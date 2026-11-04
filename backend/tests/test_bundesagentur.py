@@ -188,3 +188,26 @@ async def test_refresh_reports_a_failure_as_germany(session):
 
     assert result.failed_countries == ["DE"]
     assert result.inserted == 0
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"stellenangebotsTitel": None},
+        {"stellenlokationen": ["not an object"]},
+        {"stellenlokationen": "not a list"},
+    ],
+)
+def test_malformed_job_is_skipped_and_the_rest_are_kept(fields):
+    data = {"ergebnisliste": [job("first"), job("broken", **fields), job("last")]}
+    assert [v.external_id for v in parse_ba_response(data)] == ["first", "last"]
+
+
+@respx.mock
+async def test_refresh_reports_a_page_that_is_not_json_as_a_failure(session):
+    respx.get(BA_SEARCH_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
+
+    async with httpx.AsyncClient() as client:
+        result = await refresh_bundesagentur(session, client)
+
+    assert result.failed_countries == ["DE"]
