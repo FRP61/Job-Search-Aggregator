@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 ESCO_OCCUPATION_URL = "https://ec.europa.eu/esco/api/resource/occupation"
 ESCO_CACHE_DAYS = 365  # ESCO publishes a new version about once a year
+# Some links always answer 500, so one failure says nothing about the service
+ESCO_MAX_FAILURES_IN_A_ROW = 3
 
 
 async def fetch_isco_code(client: httpx.AsyncClient, uri: str) -> str | None:
@@ -36,15 +38,17 @@ async def resolve_isco_codes(
 ) -> dict[str, str]:
     """Occupation link -> ISCO code, asking ESCO only for links not in the cache.
 
-    If ESCO fails we stop asking until the next run, because waiting for a
-    timeout on hundreds of links would stall the refresh. Those jobs keep the
-    industry guessed from the title.
+    A link that fails is skipped. After several failures in a row ESCO itself is
+    probably down, so we stop asking until the next run: waiting for a timeout on
+    hundreds of links would stall the refresh. Those jobs keep the industry
+    guessed from the title.
     """
     keys = {uri: cache_key(uri) for uri in sorted(uris)}
     cached = await cache_get_many(session, list(keys.values()))
 
     codes = {uri: cached[key]["isco"] for uri, key in keys.items() if key in cached}
     asked = 0
+    failures_in_a_row = 0
     for uri, key in keys.items():
         if uri in codes:
             continue
@@ -54,8 +58,12 @@ async def resolve_isco_codes(
         try:
             code = await fetch_isco_code(client, uri)
         except REQUEST_ERRORS as error:
-            logger.warning("ESCO lookup stopped, %d links unresolved: %r", len(keys) - len(codes), error)
-            break
+            failures_in_a_row += 1
+            if failures_in_a_row >= ESCO_MAX_FAILURES_IN_A_ROW:
+                logger.warning("ESCO lookup stopped, %d links unresolved: %r", len(keys) - len(codes), error)
+                break
+            continue
+        failures_in_a_row = 0
         if code is not None:
             codes[uri] = code
             await cache_set(session, key, {"isco": code}, ESCO_CACHE_DAYS)

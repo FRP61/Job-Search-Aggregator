@@ -22,6 +22,7 @@ JOB_PARSE_ERRORS = (KeyError, TypeError, ValueError, AttributeError, OverflowErr
 # A failed request, or an answer that isn't JSON, like a maintenance page with status 200.
 # json.JSONDecodeError is a ValueError.
 REQUEST_ERRORS = (httpx.HTTPError, ValueError)
+RETRY_PAUSE_SECONDS = 2
 
 
 @dataclass
@@ -92,6 +93,24 @@ def annual_max_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float
     return eur_amount
 
 
+def _is_temporary(error: Exception) -> bool:
+    """A dropped connection or a server error can pass. A 400 past the page limit won't."""
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code >= 500
+    return isinstance(error, httpx.TransportError)
+
+
+async def _fetch_with_retry(fetch_page: Callable[[int], Awaitable[dict]], page: int) -> dict:
+    """Ask for a page, and once more if the failure looks temporary."""
+    try:
+        return await fetch_page(page)
+    except REQUEST_ERRORS as error:
+        if not _is_temporary(error):
+            raise
+        await asyncio.sleep(RETRY_PAUSE_SECONDS)
+        return await fetch_page(page)
+
+
 async def collect_pages(
     fetch_page: Callable[[int], Awaitable[dict]],
     parse: Callable[[dict], list[NormalizedVacancy]],
@@ -102,9 +121,10 @@ async def collect_pages(
 ) -> list[NormalizedVacancy]:
     """Read a board page by page, keeping jobs that aren't too old.
 
-    A short page means it was the last one. A failed first page raises, so the
-    caller can report it. A failure later keeps what was read: a long download
-    shouldn't be thrown away because of one bad answer near the end.
+    A short page means it was the last one. A temporary failure is retried once.
+    A failed first page raises, so the caller can report it. A failure later keeps
+    what was read: a long download shouldn't be thrown away because of one bad
+    answer near the end.
     """
     now = datetime.now(UTC)
     vacancies = []
@@ -112,7 +132,7 @@ async def collect_pages(
         if page > 1:
             await asyncio.sleep(pause_seconds)
         try:
-            data = await fetch_page(page)
+            data = await _fetch_with_retry(fetch_page, page)
         except REQUEST_ERRORS as error:
             if page == 1:
                 raise

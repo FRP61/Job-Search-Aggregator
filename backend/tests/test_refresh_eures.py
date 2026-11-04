@@ -77,7 +77,7 @@ async def test_no_codes_means_all_27_countries(session):
     async with httpx.AsyncClient() as client:
         result = await refresh_eures(session, client)
 
-    assert route.call_count == 27
+    assert route.call_count == 28  # 27 countries, and Malta's failure is retried once
     assert result.inserted == 26
     assert result.failed == ["MT"]
 
@@ -188,7 +188,7 @@ async def test_refresh_all_reads_national_boards_before_eures(session):
         result = await refresh_all(session, client)
 
     assert calls[0] == "board"
-    assert calls.count("eures") == 27
+    assert calls.count("eures") == 28  # 27 countries, and Malta's failure is retried once
     assert result.inserted == 26
     assert result.failed == ["MT"]
 

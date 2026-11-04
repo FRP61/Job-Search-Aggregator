@@ -478,3 +478,54 @@ async def test_duplicate_in_a_later_batch_is_still_found(session, monkeypatch):
 
     assert result.inserted == 1
     assert result.skipped == 1
+
+
+async def test_one_row_takes_only_one_copy_from_another_board(session):
+    """A chain posts the same title in many branches: they mustn't hide behind one card."""
+    await save_vacancies(session, [ba_job()], {})
+
+    result = await save_vacancies(session, [eures_job(f"e{i}", REAL_EURES_TITLE) for i in range(3)], {})
+
+    rows = await saved_rows(session)
+    assert result.merged == 1
+    assert len(rows[0].other_sources) == 1
+    # e1 and e2 have the same fingerprint as each other, so one row is added for them
+    assert result.inserted == 1
+    assert result.skipped == 1
+
+
+async def test_two_copies_from_different_boards_can_link_to_one_row(session):
+    await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE)], {})
+    other = eures_job("x1", REAL_EURES_TITLE)
+    other.source = "another_board"
+
+    result = await save_vacancies(session, [ba_job(), other], {})
+
+    assert result.merged == 2
+
+
+async def test_known_copy_is_still_recognised_on_the_next_refresh(session):
+    await save_vacancies(session, [ba_job(), eures_job("e1", REAL_EURES_TITLE)], {})
+
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE)], {})
+
+    assert result.skipped == 1
+    assert result.inserted == 0
+
+
+@pytest.mark.parametrize(
+    ("amount", "period", "expected"),
+    [
+        (19900.0, "hour", None),  # a monthly amount marked as hourly: 9 million a year
+        (6.55, "month", None),  # an hourly amount marked as monthly: 79 a year
+        (2500.0, "month", 30000),
+        (115.0, "hour", 239200),
+    ],
+)
+async def test_implausible_yearly_salary_is_not_shown(session, amount, period, expected):
+    vacancy = make_vacancy(salary_min=amount, salary_currency="EUR", salary_period=period)
+    await save_vacancies(session, [vacancy], {})
+
+    row = (await saved_rows(session))[0]
+    assert row.salary_annual_min_eur == expected
+    assert row.salary_min == amount

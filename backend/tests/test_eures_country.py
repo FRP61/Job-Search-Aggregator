@@ -107,7 +107,9 @@ async def test_broken_job_does_not_end_the_paging():
 
 @respx.mock
 async def test_error_on_a_later_page_keeps_what_was_read():
-    respx.post(EURES_SEARCH_URL).mock(side_effect=[page_of(EURES_PAGE_SIZE), httpx.Response(500)])
+    respx.post(EURES_SEARCH_URL).mock(
+        side_effect=[page_of(EURES_PAGE_SIZE), httpx.Response(500), httpx.Response(500)]
+    )
 
     async with httpx.AsyncClient() as client:
         vacancies = await fetch_eures_country(client, "PL")
@@ -196,3 +198,27 @@ async def test_asks_eures_for_the_last_month():
         await fetch_eures_country(client, "PL")
 
     assert json.loads(route.calls.last.request.content)["publicationPeriod"] == "LAST_MONTH"
+
+
+@respx.mock
+async def test_temporary_failure_is_retried_once():
+    route = respx.post(EURES_SEARCH_URL).mock(
+        side_effect=[page_of(EURES_PAGE_SIZE), httpx.ConnectError("dropped"), page_of(2, "after")]
+    )
+
+    async with httpx.AsyncClient() as client:
+        vacancies = await fetch_eures_country(client, "PL")
+
+    assert route.call_count == 3
+    assert len(vacancies) == EURES_PAGE_SIZE + 2
+
+
+@respx.mock
+async def test_page_past_the_limit_is_not_retried():
+    route = respx.post(EURES_SEARCH_URL).mock(side_effect=[page_of(EURES_PAGE_SIZE), httpx.Response(400)])
+
+    async with httpx.AsyncClient() as client:
+        vacancies = await fetch_eures_country(client, "PL")
+
+    assert route.call_count == 2
+    assert len(vacancies) == EURES_PAGE_SIZE

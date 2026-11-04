@@ -29,6 +29,9 @@ from app.models import Country, Industry, Vacancy, utcnow
 # this, the same title at the same company is more likely another branch's job.
 COPY_MAX_DAYS_APART = 3
 SAVE_BATCH_SIZE = 1000
+# Outside this range a yearly salary is a mistake in the source, like a monthly amount marked as hourly
+MIN_PLAUSIBLE_ANNUAL_EUR = 1_000
+MAX_PLAUSIBLE_ANNUAL_EUR = 1_000_000
 
 # Sources with one download for the whole board; EURES goes country by country
 SOURCES = {
@@ -58,6 +61,13 @@ class SaveResult:
         self.failed.extend(other.failed)
 
 
+def _plausible_salary(annual_eur: float | None) -> float | None:
+    """The yearly salary, or None if it can't be real. The board's own figures stay in the row."""
+    if annual_eur is None or not MIN_PLAUSIBLE_ANNUAL_EUR <= annual_eur <= MAX_PLAUSIBLE_ANNUAL_EUR:
+        return None
+    return annual_eur
+
+
 def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | None, rates: dict[str, float]) -> None:
     """Copy a vacancy's data into a table row, cutting text to the column sizes."""
     row.title = vacancy.title[:500]
@@ -73,8 +83,8 @@ def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | No
     row.salary_max = vacancy.salary_max
     row.salary_currency = vacancy.salary_currency
     row.salary_period = vacancy.salary_period
-    row.salary_annual_min_eur = annual_min_eur(vacancy, rates)
-    row.salary_annual_max_eur = annual_max_eur(vacancy, rates)
+    row.salary_annual_min_eur = _plausible_salary(annual_min_eur(vacancy, rates))
+    row.salary_annual_max_eur = _plausible_salary(annual_max_eur(vacancy, rates))
     row.posted_at = vacancy.posted_at
     row.loose_fingerprint = vacancy.loose_fingerprint
     row.fetched_at = utcnow()
@@ -126,13 +136,22 @@ def _is_repost_of_expired_row(row: Vacancy, vacancy: NormalizedVacancy, now: dat
 
 
 def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
-    """The same job on another board, where one of the two has no city to compare."""
+    """The same job on another board, where one of the two has no city to compare.
+
+    A row takes only one copy from each board. Otherwise a chain posting one title
+    in many branches hides them all behind one card: a real run gave 132 links on a row.
+    """
     for row in rows:
         if (
-            row.source != vacancy.source
-            and (row.city is None or vacancy.city is None)
-            and _published_close_together(row, vacancy)
+            row.source == vacancy.source
+            or (row.city is not None and vacancy.city is not None)
+            or not _published_close_together(row, vacancy)
         ):
+            continue
+        links = row.other_sources or []
+        if {"source": vacancy.source, "url": vacancy.url} in links:
+            return row
+        if all(link["source"] != vacancy.source for link in links):
             return row
     return None
 

@@ -127,16 +127,17 @@ async def test_expired_answer_is_requested_again(session):
 
 
 @respx.mock
-async def test_esco_failure_stops_asking_and_keeps_what_it_has(session):
+async def test_esco_going_down_stops_asking_and_keeps_what_it_has(session):
+    uris = {BOOKKEEPER} | {f"http://data.europa.eu/esco/occupation/x{i}" for i in range(9)}
     route = respx.get(ESCO_OCCUPATION_URL).mock(
-        side_effect=[httpx.Response(200, json={"code": "3313.2"}), httpx.Response(500)]
+        side_effect=[httpx.Response(200, json={"code": "3313.2"})] + [httpx.Response(500)] * 9
     )
 
     async with httpx.AsyncClient() as client:
-        codes = await resolve_isco_codes(session, client, {BOOKKEEPER, FARMER, SECRETARY})
+        codes = await resolve_isco_codes(session, client, uris)
 
-    assert codes == {BOOKKEEPER: "3313"}
-    assert route.call_count == 2
+    assert list(codes.values()) == ["3313"]
+    assert route.call_count == 4
 
 
 @respx.mock
@@ -233,3 +234,29 @@ async def test_esco_page_that_is_not_json_keeps_the_guess(session):
         await apply_occupation_industries(session, client, [vacancy])
 
     assert vacancy.industry == "sales"
+
+
+@respx.mock
+async def test_one_broken_link_does_not_stop_the_others(session):
+    def answer(request: httpx.Request) -> httpx.Response:
+        if request.url.params["uri"] == BOOKKEEPER:
+            return httpx.Response(500)
+        return esco_answer(request)
+
+    respx.get(ESCO_OCCUPATION_URL).mock(side_effect=answer)
+
+    async with httpx.AsyncClient() as client:
+        codes = await resolve_isco_codes(session, client, {BOOKKEEPER, FARMER, SECRETARY})
+
+    assert codes == {FARMER: "6111", SECRETARY: "4120"}
+
+
+@respx.mock
+async def test_several_failures_in_a_row_stop_asking(session):
+    route = respx.get(ESCO_OCCUPATION_URL).mock(return_value=httpx.Response(500))
+    uris = {f"http://data.europa.eu/esco/occupation/{i}" for i in range(10)}
+
+    async with httpx.AsyncClient() as client:
+        assert await resolve_isco_codes(session, client, uris) == {}
+
+    assert route.call_count == 3
