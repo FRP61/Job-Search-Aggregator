@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from app.integrations.base import NormalizedVacancy, fill_computed_fields
+from app.integrations.bundesagentur import parse_ba_job
 from app.models import Industry, Vacancy
 from app.services.vacancies import save_vacancies
 
@@ -204,3 +205,96 @@ async def test_second_run_updates_each_country_separately(session):
     rows = await saved_rows(session)
     assert result.updated == 1
     assert [(row.country_code, row.salary_min) for row in rows] == [("AT", 1000), ("IT", 2000)]
+
+
+def eures_job(external_id: str, title: str, company: str | None = "Pneuhage Management GmbH & Co. KG"):
+    vacancy = NormalizedVacancy(
+        source="eures",
+        external_id=external_id,
+        title=title,
+        url=f"https://eures.example/{external_id}",
+        country_code="DE",
+        company=company,
+        posted_at=datetime(2026, 11, 2, tzinfo=UTC),
+    )
+    return fill_computed_fields(vacancy)
+
+
+def ba_job(external_id: str = "ba", city: str | None = "Bruchsal", company: str | None = "Pneuhage Management GmbH & Co. KG"):
+    job = {
+        "referenznummer": external_id,
+        "stellenangebotsTitel": "Innendienstverkäufer (m/w/d)",
+        "hauptberuf": "Kaufmann/-frau - Groß- und Außenhandel (Großhandel)",
+        "datumErsteVeroeffentlichung": "2026-11-02",
+        "firma": company,
+    }
+    if city:
+        job["stellenlokationen"] = [{"adresse": {"ort": city, "land": "DEUTSCHLAND"}}]
+    return parse_ba_job(job)
+
+
+REAL_EURES_TITLE = "Innendienstverkäufer (m/w/d) (Kaufmann/-frau - Groß- und Außenhandel (Großhandel))"
+
+
+async def test_eures_copy_of_a_bundesagentur_job_becomes_a_link(session):
+    await save_vacancies(session, [ba_job()], {})
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE)], {})
+
+    rows = await saved_rows(session)
+    assert result.merged == 1
+    assert len(rows) == 1
+    assert rows[0].city == "Bruchsal"
+    assert rows[0].other_sources == [{"source": "eures", "url": "https://eures.example/e1"}]
+
+
+async def test_bundesagentur_copy_of_an_eures_job_becomes_a_link(session):
+    await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE)], {})
+    result = await save_vacancies(session, [ba_job()], {})
+
+    assert result.merged == 1
+    assert len(await saved_rows(session)) == 1
+
+
+async def test_copy_in_the_same_batch_becomes_a_link(session):
+    result = await save_vacancies(session, [ba_job(), eures_job("e1", REAL_EURES_TITLE)], {})
+
+    assert result.inserted == 1
+    assert result.merged == 1
+
+
+async def test_second_refresh_does_not_add_the_link_again(session):
+    await save_vacancies(session, [ba_job(), eures_job("e1", REAL_EURES_TITLE)], {})
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE)], {})
+
+    rows = await saved_rows(session)
+    assert result.skipped == 1
+    assert len(rows[0].other_sources) == 1
+
+
+async def test_same_job_in_two_cities_on_one_board_stays_separate(session):
+    result = await save_vacancies(session, [ba_job("a", "Bruchsal"), ba_job("b", "Köln")], {})
+
+    assert result.inserted == 2
+    assert len(await saved_rows(session)) == 2
+
+
+async def test_different_title_is_not_a_copy(session):
+    await save_vacancies(session, [ba_job()], {})
+    result = await save_vacancies(session, [eures_job("e1", "Lagerist (m/w/d) (Fachlagerist/in)")], {})
+
+    assert result.inserted == 1
+
+
+async def test_different_company_is_not_a_copy(session):
+    await save_vacancies(session, [ba_job()], {})
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE, company="Euromaster GmbH")], {})
+
+    assert result.inserted == 1
+
+
+async def test_without_a_company_nothing_is_linked_by_title_alone(session):
+    await save_vacancies(session, [ba_job(company=None)], {})
+    result = await save_vacancies(session, [eures_job("e1", REAL_EURES_TITLE, company=None)], {})
+
+    assert result.inserted == 1
+    assert result.merged == 0

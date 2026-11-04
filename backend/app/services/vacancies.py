@@ -47,6 +47,7 @@ def _copy_fields(row: Vacancy, vacancy: NormalizedVacancy, industry_id: int | No
     row.salary_annual_min_eur = annual_min_eur(vacancy, rates)
     row.salary_annual_max_eur = annual_max_eur(vacancy, rates)
     row.posted_at = vacancy.posted_at
+    row.loose_fingerprint = vacancy.loose_fingerprint
     row.fetched_at = utcnow()
 
 
@@ -62,6 +63,7 @@ async def _load_existing_rows(session: AsyncSession, vacancies: list[NormalizedV
         select(Vacancy).where(
             Vacancy.external_id.in_([vacancy.external_id for vacancy in vacancies])
             | Vacancy.fingerprint.in_([vacancy.fingerprint for vacancy in vacancies])
+            | Vacancy.loose_fingerprint.in_([v.loose_fingerprint for v in vacancies if v.loose_fingerprint])
         )
     )
     return list(rows)
@@ -70,6 +72,14 @@ async def _load_existing_rows(session: AsyncSession, vacancies: list[NormalizedV
 def _row_key(source: str, external_id: str, country_code: str) -> tuple[str, str, str]:
     """A row's identity: one job can have a separate row for each country."""
     return (source, external_id, country_code)
+
+
+def _find_twin_without_city(rows: list[Vacancy], vacancy: NormalizedVacancy) -> Vacancy | None:
+    """The same job on another board, where one of the two has no city to compare."""
+    for row in rows:
+        if row.source != vacancy.source and (row.city is None or vacancy.city is None):
+            return row
+    return None
 
 
 def _add_other_source(twin: Vacancy, vacancy: NormalizedVacancy) -> bool:
@@ -90,6 +100,7 @@ async def save_vacancies(
 
     Same source, id and country already saved -> update that row (updated)
     Same fingerprint from another source      -> add a link to other_sources (merged)
+    Another source without a city to compare  -> add a link to other_sources (merged)
     Same fingerprint, same source or link     -> nothing new (skipped)
     Otherwise                                 -> new row (inserted)
     """
@@ -101,12 +112,18 @@ async def save_vacancies(
     rows = await _load_existing_rows(session, vacancies)
     by_key = {_row_key(row.source, row.external_id, row.country_code): row for row in rows}
     by_fingerprint = {row.fingerprint: row for row in rows}
+    by_loose_fingerprint: dict[str, list[Vacancy]] = {}
+    for row in rows:
+        if row.loose_fingerprint:
+            by_loose_fingerprint.setdefault(row.loose_fingerprint, []).append(row)
 
     for vacancy in vacancies:
         industry_id = industry_ids.get(vacancy.industry)
         key = _row_key(vacancy.source, vacancy.external_id, vacancy.country_code)
         row = by_key.get(key)
         twin = by_fingerprint.get(vacancy.fingerprint)
+        if row is None and twin is None:
+            twin = _find_twin_without_city(by_loose_fingerprint.get(vacancy.loose_fingerprint, []), vacancy)
 
         if row is not None:
             # A changed title can make the fingerprint equal to another row's.
@@ -123,6 +140,8 @@ async def save_vacancies(
             session.add(row)
             by_key[key] = row
             by_fingerprint[row.fingerprint] = row
+            if row.loose_fingerprint:
+                by_loose_fingerprint.setdefault(row.loose_fingerprint, []).append(row)
             result.inserted += 1
         elif twin.source == vacancy.source:
             result.skipped += 1

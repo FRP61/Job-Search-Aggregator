@@ -37,6 +37,13 @@ def ba_industry(job: dict) -> str:
     return industry
 
 
+def ba_match_title(job: dict) -> str | None:
+    """EURES shows the jobs it gets from this board as "title (occupation)"."""
+    if not job.get("hauptberuf"):
+        return None
+    return f"{job['stellenangebotsTitel']} ({job['hauptberuf']})"
+
+
 def parse_ba_job(job: dict) -> NormalizedVacancy:
     """Turn one job from a search response into a NormalizedVacancy."""
     vacancy = NormalizedVacancy(
@@ -50,6 +57,7 @@ def parse_ba_job(job: dict) -> NormalizedVacancy:
         industry=ba_industry(job),
         city=ba_address(job).get("ort"),
         remote=job.get("homeofficemoeglich") is True,
+        match_title=ba_match_title(job),
     )
     return fill_computed_fields(vacancy)
 

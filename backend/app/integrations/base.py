@@ -27,6 +27,10 @@ class NormalizedVacancy:
     city: str | None = None
     remote: bool = False
     fingerprint: str = ""
+    # The title as other boards write it, if it differs from ours
+    match_title: str | None = None
+    # Finds the same job on a board that has no city. None without a company: too unsure
+    loose_fingerprint: str | None = None
     # Occupation links to look up when the industry so far is only a guess from the title
     occupation_uris: list[str] = field(default_factory=list)
 
@@ -44,6 +48,9 @@ def fill_computed_fields(vacancy: NormalizedVacancy) -> NormalizedVacancy:
     if vacancy.industry is None:
         vacancy.industry = classify_industry(vacancy.title)
     vacancy.fingerprint = fingerprint(vacancy.title, vacancy.company, vacancy.country_code, vacancy.city)
+    if vacancy.company:
+        title = vacancy.match_title or vacancy.title
+        vacancy.loose_fingerprint = fingerprint(title, vacancy.company, vacancy.country_code, None)
     return vacancy
 
 def annual_min_eur(vacancy: NormalizedVacancy, rates: dict[str, float]) -> float | None:

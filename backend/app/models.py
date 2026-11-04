@@ -79,6 +79,8 @@ class Vacancy(Base):
     external_id: Mapped[str] = mapped_column(String(255))
     # sha1 of normalized title/company/country/city, used for cross-source dedup
     fingerprint: Mapped[str] = mapped_column(String(40), unique=True)
+    # The same without the city, to find a job on a board that doesn't give one
+    loose_fingerprint: Mapped[str | None] = mapped_column(String(40), index=True)
 
     title: Mapped[str] = mapped_column(String(500))
     company: Mapped[str | None] = mapped_column(String(255))
