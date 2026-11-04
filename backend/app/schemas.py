@@ -55,6 +55,10 @@ class VacancyOut(ORMModel):
     other_sources: list[dict]
 
 
+class VacancyDetailOut(VacancyOut):
+    description: str | None
+
+
 class VacancyPageOut(BaseModel):
     total: int
     page: int

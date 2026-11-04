@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.db import get_session
 from app.integrations.base import MAX_VACANCY_AGE_DAYS
 from app.models import Vacancy, utcnow
-from app.schemas import VacancyOut, VacancyPageOut
+from app.schemas import VacancyDetailOut, VacancyOut, VacancyPageOut
 
 router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 
@@ -69,3 +69,21 @@ async def list_vacancies(
         for row in ordered_rows
     ]
     return VacancyPageOut(total=total, page=page, page_size=page_size, items=items)
+
+
+@router.get("/{vacancy_id}", response_model=VacancyDetailOut)
+async def get_vacancy(vacancy_id: int, session: AsyncSession = Depends(get_session)):
+    """One vacancy with its full description. Older than 30 days counts as not found."""
+    now = utcnow()
+    row = await session.scalar(
+        select(Vacancy)
+        .where(Vacancy.id == vacancy_id, *_search_filters(None, now))
+        .options(selectinload(Vacancy.industry))
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Vacancy {vacancy_id} not found")
+
+    countries = await _load_countries(session, [row], now)
+    return VacancyDetailOut.model_validate(row).model_copy(
+        update={"countries": countries[(row.source, row.external_id)]}
+    )

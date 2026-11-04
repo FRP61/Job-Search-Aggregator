@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.integrations.base import NormalizedVacancy, fill_computed_fields
 from app.models import Vacancy
@@ -201,3 +201,40 @@ async def test_page_past_the_end_is_empty(session, client):
 
     assert data["total"] == 1
     assert data["items"] == []
+
+
+async def first_id(client) -> int:
+    return (await client.get(URL)).json()["items"][0]["id"]
+
+
+async def test_detail_has_the_full_description(session, client):
+    await save_vacancies(session, [make_vacancy("1", description="Long text about the job")], {})
+
+    response = await client.get(f"{URL}/{await first_id(client)}")
+
+    assert response.status_code == 200
+    assert response.json()["description"] == "Long text about the job"
+    assert response.json()["title"] == "Python Developer 1"
+
+
+async def test_detail_lists_all_countries_of_the_job(session, client):
+    await save_vacancies(session, [make_vacancy("multi", code) for code in ("IT", "AT")], {})
+
+    response = await client.get(f"{URL}/{await first_id(client)}")
+
+    assert response.json()["countries"] == ["AT", "IT"]
+
+
+async def test_detail_of_a_missing_vacancy_is_404(client):
+    assert (await client.get(f"{URL}/999999")).status_code == 404
+
+
+async def test_detail_of_a_too_old_vacancy_is_404(session, client):
+    await save_vacancies(session, [make_vacancy("old", posted_at=days_ago(31))], {})
+    row = await session.scalar(select(Vacancy))
+
+    assert (await client.get(f"{URL}/{row.id}")).status_code == 404
+
+
+async def test_detail_id_must_be_a_number(client):
+    assert (await client.get(f"{URL}/abc")).status_code == 422
