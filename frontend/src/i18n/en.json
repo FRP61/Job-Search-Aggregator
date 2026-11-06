@@ -2,10 +2,18 @@
   "header": {
     "language": "Site language"
   },
+  "nav": {
+    "label": "Main menu",
+    "calculator": "Salary calculator"
+  },
   "home": {
     "title": "Jobs in Europe with real take-home pay",
     "subtitle": "Vacancies from 27 EU countries: what you take home and what it buys",
     "searchJobs": "Search jobs",
     "takeTest": "Take the career test"
+  },
+  "calculator": {
+    "title": "Salary calculator",
+    "intro": "How much you take home after taxes and contributions"
   }
 }

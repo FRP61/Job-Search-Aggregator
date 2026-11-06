@@ -35,3 +35,10 @@ test('при следующем открытии сайт берёт сохра�
 
 	expect(getStartLanguage()).toBe('en')
 })
+test('в шапке есть ссылка на калькулятор, по ней открывается страница калькулятора', () => {
+	render(<App />)
+
+	fireEvent.click(screen.getByRole('link', { name: 'Калькулятор зарплати' }))
+
+	expect(screen.getByRole('heading', { name: 'Калькулятор зарплати' })).toBeInTheDocument()
+})
