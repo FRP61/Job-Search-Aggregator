@@ -32,10 +32,12 @@
     "effectiveRate": "Taxes and contributions: {{rate}}% of salary",
     "assumptions": "Calculated for a single person without children on an employment contract, 2026 rules.",
     "notes": {
-      "EE": "Estonia: tax-free allowance of €700 a month, 2% to the second pension pillar."
+      "EE": "Estonia: tax-free allowance of €700 a month, 2% to the second pension pillar.",
+      "LV": "Latvia: tax-free allowance of €550 a month, 10.5% social insurance on income up to €105,300 a year."
     }
   },
   "countries": {
-    "EE": "Estonia"
+    "EE": "Estonia",
+    "LV": "Latvia"
   }
 }
