@@ -1,11 +1,13 @@
 import { estonia } from './rules/ee'
+import { latvia } from './rules/lv'
 
 // Налоговые правила по коду страны. Новую страну добавляем сюда.
 const RULES_BY_COUNTRY = {
   EE: estonia,
+  LV: latvia,
 }
 
-// Коды стран, для которых калькулятор умеет считать: ['EE']
+// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV']
 export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
 
 // Округлить сумму до центов: 384.00000000000006 → 384
@@ -42,7 +44,9 @@ export function calculateNet(grossAnnual, countryCode) {
   let socialContributions = 0
   let contributionsReducingTax = 0
   for (const contribution of rules.contributions) {
-    const amount = roundToCents(grossAnnual * contribution.rate)
+    // capBase — потолок: взнос берётся только с этой части зарплаты (если потолок есть)
+    const base = Math.min(grossAnnual, contribution.capBase ?? Infinity)
+    const amount = roundToCents(base * contribution.rate)
     socialContributions += amount
     if (contribution.reducesTaxBase) {
       contributionsReducingTax += amount

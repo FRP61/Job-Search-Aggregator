@@ -29,3 +29,17 @@ test('Эстония: зарплата меньше необлагаемого �
 test('страна без правил → null', () => {
 	expect(calculateNet(30000, 'XX')).toBeNull()
 })
+test('Латвия: 24 000 € брутто в год → 17 685,60 € на руки', () => {
+	const result = calculateNet(24000, 'LV')
+
+	expect(result.socialContributions).toBeCloseTo(2520, 2)
+	expect(result.incomeTax).toBeCloseTo(3794.4, 2)
+	expect(result.net).toBeCloseTo(17685.6, 2)
+	expect(result.effectiveRate).toBeCloseTo(26.3, 1)
+})
+
+test('Латвия: соцвзносы берутся только с первых 105 300 € в год', () => {
+	const result = calculateNet(120000, 'LV')
+
+	expect(result.socialContributions).toBeCloseTo(11056.5, 2)
+})
