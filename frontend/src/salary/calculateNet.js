@@ -5,6 +5,9 @@ const RULES_BY_COUNTRY = {
   EE: estonia,
 }
 
+// Коды стран, для которых калькулятор умеет считать: ['EE']
+export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
+
 // Округлить сумму до центов: 384.00000000000006 → 384
 function roundToCents(amount) {
   return Math.round(amount * 100) / 100
