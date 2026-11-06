@@ -14,6 +14,28 @@
   },
   "calculator": {
     "title": "Salary calculator",
-    "intro": "How much you take home after taxes and contributions"
+    "intro": "How much you take home after taxes and contributions",
+    "country": "Country",
+    "amount": "Gross salary, €",
+    "amountPlaceholder": "e.g. 2000",
+    "period": "Amount is",
+    "perMonth": "per month",
+    "perYear": "per year",
+    "enterAmount": "Enter an amount to see the breakdown.",
+    "item": "Item",
+    "columnMonth": "Per month",
+    "columnYear": "Per year",
+    "gross": "Gross",
+    "contributions": "Social contributions",
+    "incomeTax": "Income tax",
+    "net": "Take-home pay",
+    "effectiveRate": "Taxes and contributions: {{rate}}% of salary",
+    "assumptions": "Calculated for a single person without children on an employment contract, 2026 rules.",
+    "notes": {
+      "EE": "Estonia: tax-free allowance of €700 a month, 2% to the second pension pillar."
+    }
+  },
+  "countries": {
+    "EE": "Estonia"
   }
 }
