@@ -43,3 +43,25 @@ test('Латвия: соцвзносы берутся только с первы
 
 	expect(result.socialContributions).toBeCloseTo(11056.5, 2)
 })
+test('Литва: 32 400 € брутто в год (2 700 €/мес) → 19 602 € на руки', () => {
+	const result = calculateNet(32400, 'LT')
+
+	expect(result.socialContributions).toBeCloseTo(6318, 2)
+	expect(result.incomeTax).toBeCloseTo(6480, 2)
+	expect(result.net).toBeCloseTo(19602, 2)
+	expect(result.effectiveRate).toBeCloseTo(39.5, 1)
+})
+
+test('Литва: необлагаемый минимум уменьшается с ростом зарплаты', () => {
+	const result = calculateNet(24000, 'LT')
+
+	expect(result.incomeTax).toBeCloseTo(4003.27, 2)
+	expect(result.net).toBeCloseTo(15316.73, 2)
+})
+
+test('Литва: при минимальной зарплате необлагаемый минимум полный', () => {
+	const result = calculateNet(13836, 'LT')
+
+	expect(result.incomeTax).toBeCloseTo(974.4, 2)
+	expect(result.net).toBeCloseTo(10163.58, 2)
+})

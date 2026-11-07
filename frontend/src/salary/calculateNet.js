@@ -1,13 +1,15 @@
 import { estonia } from './rules/ee'
+import { lithuania } from './rules/lt'
 import { latvia } from './rules/lv'
 
 // Налоговые правила по коду страны. Новую страну добавляем сюда.
 const RULES_BY_COUNTRY = {
   EE: estonia,
   LV: latvia,
+  LT: lithuania,
 }
 
-// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV']
+// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', 'LT']
 export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
 
 // Округлить сумму до центов: 384.00000000000006 → 384
@@ -32,6 +34,18 @@ function taxByBrackets(taxableIncome, brackets) {
   return tax
 }
 
+// Необлагаемый минимум за год. Бывает двух видов:
+// - просто число: одинаковый для всех (Эстония, Латвия);
+// - { max, taperFrom, taperRate }: «тает» с ростом зарплаты (Литва) —
+//   полный до taperFrom, дальше минус taperRate за каждый евро сверху, но не меньше нуля
+function annualAllowance(allowance, grossAnnual) {
+  if (typeof allowance === 'number') {
+    return allowance
+  }
+  const reduction = allowance.taperRate * Math.max(0, grossAnnual - allowance.taperFrom)
+  return Math.max(0, allowance.max - reduction)
+}
+
 // Сколько останется на руки из годовой зарплаты брутто (в евро).
 // Возвращает разбивку или null, если для страны ещё нет правил.
 export function calculateNet(grossAnnual, countryCode) {
@@ -54,7 +68,8 @@ export function calculateNet(grossAnnual, countryCode) {
   }
 
   // 2. С какой суммы считать подоходный налог (не меньше нуля)
-  const taxableIncome = Math.max(0, grossAnnual - contributionsReducingTax - rules.incomeTax.allowance)
+  const allowance = annualAllowance(rules.incomeTax.allowance, grossAnnual)
+  const taxableIncome = Math.max(0, grossAnnual - contributionsReducingTax - allowance)
 
   // 3. Подоходный налог
   const incomeTax = roundToCents(taxByBrackets(taxableIncome, rules.incomeTax.brackets))
