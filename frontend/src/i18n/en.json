@@ -34,12 +34,14 @@
     "notes": {
       "EE": "Estonia: tax-free allowance of €700 a month, 2% to the second pension pillar.",
       "LV": "Latvia: tax-free allowance of €550 a month, 10.5% social insurance on income up to €105,300 a year.",
-      "LT": "Lithuania: tax-free allowance of up to €747 a month that shrinks as pay grows; 19.5% contributions (without the second pension pillar, whose members pay 3% more)."
+      "LT": "Lithuania: tax-free allowance of up to €747 a month that shrinks as pay grows; 19.5% contributions (without the second pension pillar, whose members pay 3% more).",
+      "PL": "Poland: taxes are calculated in złoty at the ECB rate of {{date}} (€1 = {{rate}} zł); standard employee costs of 250 zł a month; without PPK and without the under-26 relief."
     }
   },
   "countries": {
     "EE": "Estonia",
     "LV": "Latvia",
-    "LT": "Lithuania"
+    "LT": "Lithuania",
+    "PL": "Poland"
   }
 }

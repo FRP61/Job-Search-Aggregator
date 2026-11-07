@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { calculateNet, SUPPORTED_COUNTRIES } from '../salary/calculateNet'
-import { formatMoney, formatPercent } from '../utils/format'
+import { calculateNet, currencyOf, SUPPORTED_COUNTRIES } from '../salary/calculateNet'
+import { eurRate, EXCHANGE_RATES_DATE } from '../salary/exchangeRates'
+import { formatDate, formatMoney, formatPercent, formatRate } from '../utils/format'
 import styles from './CalculatorPage.module.css'
 
 // Превратить то, что ввёл человек, в число: «2 000,50» → 2000.5.
@@ -117,7 +118,12 @@ function CalculatorPage() {
             {t('calculator.effectiveRate', { rate: formatPercent(result.effectiveRate, i18n.language) })}
           </p>
           <p className={styles.note}>
-            {t('calculator.assumptions')} {t(`calculator.notes.${country}`)}
+            {t('calculator.assumptions')}{' '}
+            {t(`calculator.notes.${country}`, {
+              // для стран не в евро в заметке пишем курс и его дату
+              rate: formatRate(eurRate(currencyOf(country)), i18n.language),
+              date: formatDate(EXCHANGE_RATES_DATE, i18n.language),
+            })}
           </p>
         </div>
       ) : (

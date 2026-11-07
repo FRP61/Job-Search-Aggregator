@@ -1,4 +1,4 @@
-import { calculateNet } from './calculateNet'
+import { calculateNet, calculateNetLocal } from './calculateNet'
 
 test('Эстония: 24 000 € брутто в год → 19 894,08 € на руки', () => {
 	const result = calculateNet(24000, 'EE')
@@ -64,4 +64,24 @@ test('Литва: при минимальной зарплате необлаг�
 
 	expect(result.incomeTax).toBeCloseTo(974.4, 2)
 	expect(result.net).toBeCloseTo(10163.58, 2)
+})
+test('Польша: 120 000 zł брутто в год → 85 762,92 zł на руки', () => {
+	const result = calculateNetLocal(120000, 'PL')
+
+	expect(result.socialContributions).toBeCloseTo(25771.32, 2)
+	expect(result.incomeTax).toBeCloseTo(8465.76, 2)
+	expect(result.net).toBeCloseTo(85762.92, 2)
+	expect(result.effectiveRate).toBeCloseTo(28.5, 1)
+})
+
+test('Польша: с базы выше 120 000 zł налог 32%', () => {
+	const result = calculateNetLocal(200000, 'PL')
+
+	expect(result.incomeTax).toBeCloseTo(26665.6, 2)
+})
+
+test('Польша: 24 000 € переводятся в злотые по курсу ЕЦБ и обратно', () => {
+	const result = calculateNet(24000, 'PL')
+
+	expect(result.net).toBeCloseTo(17262.12, 1)
 })
