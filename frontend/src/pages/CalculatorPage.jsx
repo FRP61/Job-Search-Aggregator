@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { calculateNet, currencyOf, SUPPORTED_COUNTRIES } from '../salary/calculateNet'
+import { calculateNet, calculateNetLocal, currencyOf, SUPPORTED_COUNTRIES } from '../salary/calculateNet'
 import { eurRate, EXCHANGE_RATES_DATE } from '../salary/exchangeRates'
-import { formatDate, formatMoney, formatPercent, formatRate } from '../utils/format'
+import { currencySymbol, formatDate, formatMoney, formatPercent, formatRate } from '../utils/format'
 import styles from './CalculatorPage.module.css'
 
 // Превратить то, что ввёл человек, в число: «2 000,50» → 2000.5.
@@ -18,21 +18,65 @@ function perMonth(annualAmount) {
   return Math.round((annualAmount / 12) * 100) / 100
 }
 
+// Группа радиокнопок, оформленная как переключатель (период, валюта)
+function Switch({ legend, name, options, value, onChange }) {
+  return (
+    <fieldset className={styles.switch}>
+      <legend>{legend}</legend>
+      <div className={styles.switchOptions}>
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={value === option.value ? `${styles.switchOption} ${styles.checked}` : styles.switchOption}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 // Страница калькулятора «брутто → на руки»
 function CalculatorPage() {
   const { t, i18n } = useTranslation()
+  const language = i18n.language
 
   // То, что выбрал и ввёл человек
   const [country, setCountry] = useState(SUPPORTED_COUNTRIES[0])
   const [amountText, setAmountText] = useState('')
   const [period, setPeriod] = useState('month')
+  // В какой валюте введена сумма. Для страны не в евро по умолчанию — её валюта
+  const [currency, setCurrency] = useState(currencyOf(SUPPORTED_COUNTRIES[0]))
 
-  // Расчёт делаем сразу при каждом изменении: он мгновенный
+  // Валюта, в которой страна считает налоги, и есть ли смысл в выборе валюты
+  const localCurrency = currencyOf(country)
+  const canChooseCurrency = localCurrency !== 'EUR'
+
+  function chooseCountry(code) {
+    setCountry(code)
+    setCurrency(currencyOf(code))
+  }
+
+  // Расчёт делаем сразу при каждом изменении: он мгновенный.
+  // Сумма в евро → calculateNet, в валюте страны → calculateNetLocal
   const amount = parseAmount(amountText)
   const grossAnnual = amount === null ? null : period === 'month' ? amount * 12 : amount
-  const result = grossAnnual === null ? null : calculateNet(grossAnnual, country)
+  const calculate = currency === 'EUR' ? calculateNet : calculateNetLocal
+  const result = grossAnnual === null ? null : calculate(grossAnnual, country)
 
-  const money = (value) => formatMoney(value, i18n.language)
+  const money = (value) => formatMoney(value, language, result.currency)
+
+  // Если считали в валюте страны — сколько это в евро на руки за месяц, для сравнения
+  const netInEurPerMonth =
+    result && result.currency !== 'EUR' ? perMonth(result.net / eurRate(result.currency)) : null
 
   // Строки таблицы результата: подпись и значение за год
   const rows = result && [
@@ -50,7 +94,7 @@ function CalculatorPage() {
       <form className={styles.form} onSubmit={(event) => event.preventDefault()}>
         <div className={styles.field}>
           <label htmlFor="calculator-country">{t('calculator.country')}</label>
-          <select id="calculator-country" value={country} onChange={(event) => setCountry(event.target.value)}>
+          <select id="calculator-country" value={country} onChange={(event) => chooseCountry(event.target.value)}>
             {SUPPORTED_COUNTRIES.map((code) => (
               <option key={code} value={code}>
                 {t(`countries.${code}`)}
@@ -60,7 +104,9 @@ function CalculatorPage() {
         </div>
 
         <div className={styles.field}>
-          <label htmlFor="calculator-amount">{t('calculator.amount')}</label>
+          <label htmlFor="calculator-amount">
+            {t('calculator.amount', { currency: currencySymbol(currency, language) })}
+          </label>
           <input
             id="calculator-amount"
             type="text"
@@ -72,23 +118,31 @@ function CalculatorPage() {
           />
         </div>
 
-        <fieldset className={styles.period}>
-          <legend>{t('calculator.period')}</legend>
-          <div className={styles.periodOptions}>
-            {['month', 'year'].map((option) => (
-              <label key={option} className={period === option ? `${styles.periodOption} ${styles.checked}` : styles.periodOption}>
-                <input
-                  type="radio"
-                  name="period"
-                  value={option}
-                  checked={period === option}
-                  onChange={() => setPeriod(option)}
-                />
-                {option === 'month' ? t('calculator.perMonth') : t('calculator.perYear')}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className={styles.switches}>
+          <Switch
+            legend={t('calculator.period')}
+            name="period"
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: 'month', label: t('calculator.perMonth') },
+              { value: 'year', label: t('calculator.perYear') },
+            ]}
+          />
+
+          {canChooseCurrency && (
+            <Switch
+              legend={t('calculator.currency')}
+              name="currency"
+              value={currency}
+              onChange={setCurrency}
+              options={[localCurrency, 'EUR'].map((code) => ({
+                value: code,
+                label: currencySymbol(code, language),
+              }))}
+            />
+          )}
+        </div>
       </form>
 
       {result ? (
@@ -114,15 +168,21 @@ function CalculatorPage() {
             </tbody>
           </table>
 
+          {netInEurPerMonth !== null && (
+            <p className={styles.inEur}>
+              {t('calculator.netInEur', { amount: formatMoney(netInEurPerMonth, language) })}
+            </p>
+          )}
+
           <p className={styles.rate}>
-            {t('calculator.effectiveRate', { rate: formatPercent(result.effectiveRate, i18n.language) })}
+            {t('calculator.effectiveRate', { rate: formatPercent(result.effectiveRate, language) })}
           </p>
           <p className={styles.note}>
             {t('calculator.assumptions')}{' '}
             {t(`calculator.notes.${country}`, {
               // для стран не в евро в заметке пишем курс и его дату
-              rate: formatRate(eurRate(currencyOf(country)), i18n.language),
-              date: formatDate(EXCHANGE_RATES_DATE, i18n.language),
+              rate: formatRate(eurRate(localCurrency), language),
+              date: formatDate(EXCHANGE_RATES_DATE, language),
             })}
           </p>
         </div>
