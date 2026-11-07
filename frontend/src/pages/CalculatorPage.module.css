@@ -30,8 +30,7 @@
   gap: 6px;
 }
 
-.field label,
-.period legend {
+.field label {
   font-size: 14px;
   font-weight: 600;
 }
@@ -52,27 +51,35 @@
   outline-offset: 1px;
 }
 
-/* Переключатель «на місяць / на рік»: на всю ширину формы */
-.period {
+/* Переключатели (период, валюта): строкой на всю ширину формы */
+.switches {
   grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+
+.switch {
   margin: 0;
   padding: 0;
   border: none;
 }
 
-.period legend {
+.switch legend {
   margin-bottom: 6px;
   padding: 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.periodOptions {
+.switchOptions {
   display: inline-flex;
   border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   overflow: hidden;
 }
 
-.periodOption {
+.switchOption {
   padding: 8px 16px;
   color: var(--color-muted);
   font-weight: 600;
@@ -80,13 +87,13 @@
 }
 
 /* Сам кружок радиокнопки прячем, но он остаётся доступен клавиатуре и экранным чтецам */
-.periodOption input {
+.switchOption input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
-.periodOption:hover {
+.switchOption:hover {
   background: var(--color-primary-light);
 }
 
@@ -96,7 +103,7 @@
   color: #ffffff;
 }
 
-.periodOption:has(input:focus-visible) {
+.switchOption:has(input:focus-visible) {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
@@ -151,6 +158,13 @@
   color: var(--color-primary);
   font-size: 18px;
   font-weight: 700;
+}
+
+/* Сумма на руки в евро, когда таблица в другой валюте */
+.inEur {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  text-align: right;
 }
 
 .rate {

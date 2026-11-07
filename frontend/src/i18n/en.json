@@ -16,7 +16,7 @@
     "title": "Salary calculator",
     "intro": "How much you take home after taxes and contributions",
     "country": "Country",
-    "amount": "Gross salary, €",
+    "amount": "Gross salary, {{currency}}",
     "amountPlaceholder": "e.g. 2000",
     "period": "Amount is",
     "perMonth": "per month",
@@ -36,7 +36,9 @@
       "LV": "Latvia: tax-free allowance of €550 a month, 10.5% social insurance on income up to €105,300 a year.",
       "LT": "Lithuania: tax-free allowance of up to €747 a month that shrinks as pay grows; 19.5% contributions (without the second pension pillar, whose members pay 3% more).",
       "PL": "Poland: taxes are calculated in złoty at the ECB rate of {{date}} (€1 = {{rate}} zł); standard employee costs of 250 zł a month; without PPK and without the under-26 relief."
-    }
+    },
+    "currency": "Currency",
+    "netInEur": "≈ {{amount}} take-home per month"
   },
   "countries": {
     "EE": "Estonia",

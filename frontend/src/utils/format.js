@@ -1,13 +1,24 @@
 // Форматирование чисел так, как принято в языке сайта.
 
-// Сумма в евро: «1 657,84 €» на украинском, «€1,657.84» на английском
-export function formatMoney(amount, language) {
+// Сумма в валюте (по умолчанию в евро):
+// «1 657,84 €» / «€1,657.84», «7 146,91 zł» / «zł 7,146.91»
+export function formatMoney(amount, language, currency = 'EUR') {
   return new Intl.NumberFormat(language, {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     // «€», а не «EUR»: украинский формат по умолчанию пишет код валюты
     currencyDisplay: 'narrowSymbol',
   }).format(amount)
+}
+
+// Знак валюты так, как его пишет язык сайта: 'EUR' → «€», 'PLN' → «zł»
+export function currencySymbol(currency, language) {
+  const parts = new Intl.NumberFormat(language, {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'narrowSymbol',
+  }).formatToParts(0)
+  return parts.find((part) => part.type === 'currency').value
 }
 
 // Процент с одним знаком после запятой: «17,1» / «17.1»

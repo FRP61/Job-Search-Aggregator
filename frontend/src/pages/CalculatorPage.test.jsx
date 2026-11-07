@@ -35,3 +35,37 @@ test('на английском суммы в формате €1,657.84', async
 
 	expect(screen.getByText('€1,657.84')).toBeInTheDocument()
 })
+test('Польша: по умолчанию злотые, 10 000 zł в месяц → 7 146,91 zł на руки', () => {
+	render(<CalculatorPage />)
+
+	fireEvent.change(screen.getByLabelText('Країна'), { target: { value: 'PL' } })
+	fireEvent.change(screen.getByLabelText('Зарплата брутто, zł'), { target: { value: '10000' } })
+
+	expect(screen.getByText('7 146,91 zł')).toBeInTheDocument()
+	expect(screen.getByText('85 762,92 zł')).toBeInTheDocument()
+})
+
+test('Польша: при злотых под таблицей видно сумму на руки в евро', () => {
+	render(<CalculatorPage />)
+
+	fireEvent.change(screen.getByLabelText('Країна'), { target: { value: 'PL' } })
+	fireEvent.change(screen.getByLabelText('Зарплата брутто, zł'), { target: { value: '10000' } })
+
+	expect(screen.getByText('≈ 1 627,07 € на руки на місяць')).toBeInTheDocument()
+})
+
+test('Польша: при переключении на € число в поле остаётся', () => {
+	render(<CalculatorPage />)
+
+	fireEvent.change(screen.getByLabelText('Країна'), { target: { value: 'PL' } })
+	fireEvent.change(screen.getByLabelText('Зарплата брутто, zł'), { target: { value: '10000' } })
+	fireEvent.click(screen.getByLabelText('€'))
+
+	expect(screen.getByLabelText('Зарплата брутто, €')).toHaveValue('10000')
+})
+
+test('Эстония: переключателя валюты нет', () => {
+	render(<CalculatorPage />)
+
+	expect(screen.queryByRole('group', { name: 'Валюта' })).not.toBeInTheDocument()
+})
