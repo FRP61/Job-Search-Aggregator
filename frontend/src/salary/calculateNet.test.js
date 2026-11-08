@@ -267,3 +267,59 @@ test('Франция: 60 000 € брутто в год — часть зарп�
 	expect(result.incomeTax).toBeCloseTo(6423.3, 2)
 	expect(result.net).toBeCloseTo(41197.92, 2)
 })
+
+test('Италия: 35 000 € брутто в год → 25 937,35 € на руки', () => {
+	const result = calculateNet(35000, 'IT')
+
+	expect(result.socialContributions).toBeCloseTo(3216.5, 2)
+	expect(result.incomeTax).toBeCloseTo(5846.15, 2)
+	expect(result.net).toBeCloseTo(25937.35, 2)
+})
+
+test('Италия: 8 000 € брутто в год — доплата cuneo больше налога, налог отрицательный', () => {
+	const result = calculateNet(8000, 'IT')
+
+	expect(result.socialContributions).toBeCloseTo(735.2, 2)
+	expect(result.incomeTax).toBeCloseTo(-515.8, 2)
+	expect(result.net).toBeCloseTo(7780.6, 2)
+})
+
+test('Испания: 30 000 € брутто в год → 23 124 € на руки', () => {
+	const result = calculateNet(30000, 'ES')
+
+	expect(result.socialContributions).toBeCloseTo(1950, 2)
+	expect(result.incomeTax).toBeCloseTo(4926, 2)
+	expect(result.net).toBeCloseTo(23124, 2)
+})
+
+test('Португалия: 28 000 € брутто в год (14 × 2 000 €) → 20 831,73 € на руки', () => {
+	const result = calculateNet(28000, 'PT')
+
+	expect(result.socialContributions).toBeCloseTo(3080, 2)
+	expect(result.incomeTax).toBeCloseTo(4088.27, 2)
+	expect(result.net).toBeCloseTo(20831.73, 2)
+})
+
+test('Финляндия: 42 000 € брутто в год → 31 906,61 € на руки', () => {
+	const result = calculateNet(42000, 'FI')
+
+	expect(result.socialContributions).toBeCloseTo(3809.4, 2)
+	expect(result.incomeTax).toBeCloseTo(6283.99, 2)
+	expect(result.net).toBeCloseTo(31906.61, 2)
+})
+
+test('Швеция: 480 000 kr брутто в год → 382 917 kr на руки', () => {
+	const result = calculateNetLocal(480000, 'SE')
+
+	expect(result.socialContributions).toBeCloseTo(33600, 2)
+	expect(result.incomeTax).toBeCloseTo(63483, 2)
+	expect(result.net).toBeCloseTo(382917, 2)
+})
+
+test('Дания: 600 000 kr брутто в год → 383 638,75 kr на руки', () => {
+	const result = calculateNetLocal(600000, 'DK')
+
+	expect(result.socialContributions).toBeCloseTo(49092.96, 2)
+	expect(result.incomeTax).toBeCloseTo(167268.29, 2)
+	expect(result.net).toBeCloseTo(383638.75, 2)
+})
