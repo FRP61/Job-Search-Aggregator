@@ -1,9 +1,14 @@
 import { eurRate } from './exchangeRates'
+import { bulgaria } from './rules/bg'
+import { czechia } from './rules/cz'
 import { germany } from './rules/de'
 import { estonia } from './rules/ee'
+import { hungary } from './rules/hu'
 import { lithuania } from './rules/lt'
 import { latvia } from './rules/lv'
 import { poland } from './rules/pl'
+import { romania } from './rules/ro'
+import { slovakia } from './rules/sk'
 
 // Налоговые правила по коду страны. Новую страну добавляем сюда.
 const RULES_BY_COUNTRY = {
@@ -12,9 +17,14 @@ const RULES_BY_COUNTRY = {
   LT: lithuania,
   PL: poland,
   DE: germany,
+  BG: bulgaria,
+  RO: romania,
+  HU: hungary,
+  CZ: czechia,
+  SK: slovakia,
 }
 
-// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', 'LT', 'PL', 'DE']
+// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', ...]
 export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
 
 function rulesFor(countryCode) {
@@ -51,13 +61,15 @@ function taxByBrackets(taxableIncome, brackets) {
 
 // Необлагаемый минимум за год. Бывает двух видов:
 // - просто число: одинаковый для всех (Эстония, Латвия, расходы работника в Польше);
-// - { max, taperFrom, taperRate }: «тает» с ростом зарплаты (Литва) —
-//   полный до taperFrom, дальше минус taperRate за каждый евро сверху, но не меньше нуля
-function annualAllowance(allowance, grossAnnual) {
+// - { max, taperFrom, taperRate }: «тает» с ростом зарплаты (Литва, Румыния) —
+//   полный до taperFrom, дальше минус taperRate за каждый евро сверху, но не меньше нуля.
+//   Обычно «зарплата» здесь — брутто; с onTaxBase: true — брутто минус взносы (Словакия)
+function annualAllowance(allowance, grossAnnual, incomeAfterContributions) {
   if (typeof allowance === 'number') {
     return allowance
   }
-  const reduction = allowance.taperRate * Math.max(0, grossAnnual - allowance.taperFrom)
+  const income = allowance.onTaxBase ? incomeAfterContributions : grossAnnual
+  const reduction = allowance.taperRate * Math.max(0, income - allowance.taperFrom)
   return Math.max(0, allowance.max - reduction)
 }
 
@@ -96,14 +108,18 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   }
 
   // 2. С какой суммы считать подоходный налог (не меньше нуля)
-  const allowance = annualAllowance(rules.incomeTax.allowance, grossAnnual)
-  const taxableIncome = Math.max(0, grossAnnual - contributionsReducingTax - allowance)
+  const incomeAfterContributions = grossAnnual - contributionsReducingTax
+  const allowance = annualAllowance(rules.incomeTax.allowance ?? 0, grossAnnual, incomeAfterContributions)
+  const taxableIncome = Math.max(0, incomeAfterContributions - allowance)
 
   // 3. Подоходный налог: по формуле (Германия) или по ступеням,
   //    минус скидка с налога (если она есть, как в Польше),
   //    плюс надбавка солидарности (если она есть, как в Германии)
   const { formula, brackets, taxCredit, solidarity } = rules.incomeTax
-  const taxBeforeCredit = formula ? formula(taxableIncome) : taxByBrackets(taxableIncome, brackets)
+  // формула получает и брутто — в некоторых странах скидки с налога зависят от зарплаты
+  const taxBeforeCredit = formula
+    ? formula(taxableIncome, { gross: grossAnnual, socialContributions })
+    : taxByBrackets(taxableIncome, brackets)
   const tax = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
   const incomeTax = roundToCents(tax + solidaritySurcharge(tax, solidarity))
 

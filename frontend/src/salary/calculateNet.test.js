@@ -107,3 +107,61 @@ test('Германия: доход ниже необлагаемого мини�
 	expect(result.incomeTax).toBe(0)
 	expect(result.net).toBeCloseTo(9390, 2)
 })
+test('Болгария: 15 600 € брутто в год (1 300 €/мес) → 12 105,29 € на руки', () => {
+	const result = calculateNet(15600, 'BG')
+
+	expect(result.socialContributions).toBeCloseTo(2149.68, 2)
+	expect(result.incomeTax).toBeCloseTo(1345.03, 2)
+	expect(result.net).toBeCloseTo(12105.29, 2)
+})
+
+test('Румыния: 96 000 lei брутто в год (8 000 lei/мес) → 56 160 lei на руки', () => {
+	const result = calculateNetLocal(96000, 'RO')
+
+	expect(result.socialContributions).toBeCloseTo(33600, 2)
+	expect(result.incomeTax).toBeCloseTo(6240, 2)
+	expect(result.net).toBeCloseTo(56160, 2)
+})
+
+test('Румыния: при минимальной зарплате действует полный личный вычет', () => {
+	const result = calculateNetLocal(51900, 'RO')
+
+	expect(result.incomeTax).toBeCloseTo(2335.5, 2)
+})
+
+test('Венгрия: 7 200 000 Ft брутто в год (600 000 Ft/мес) → 4 788 000 Ft на руки', () => {
+	const result = calculateNetLocal(7200000, 'HU')
+
+	expect(result.socialContributions).toBeCloseTo(1332000, 2)
+	expect(result.incomeTax).toBeCloseTo(1080000, 2)
+	expect(result.net).toBeCloseTo(4788000, 2)
+})
+
+test('Чехия: 960 000 Kč брутто в год (80 000 Kč/мес) → 735 480 Kč на руки', () => {
+	const result = calculateNetLocal(960000, 'CZ')
+
+	expect(result.socialContributions).toBeCloseTo(111360, 2)
+	expect(result.incomeTax).toBeCloseTo(113160, 2)
+	expect(result.net).toBeCloseTo(735480, 2)
+})
+
+test('Чехия: выше 1 762 812 Kč налог 23%, соцвзнос с потолком', () => {
+	const result = calculateNetLocal(2400000, 'CZ')
+
+	expect(result.socialContributions).toBeCloseTo(274879.54, 2)
+	expect(result.incomeTax).toBeCloseTo(380135.04, 2)
+})
+
+test('Словакия: 18 000 € брутто в год (1 500 €/мес) → 13 614,16 € на руки', () => {
+	const result = calculateNet(18000, 'SK')
+
+	expect(result.socialContributions).toBeCloseTo(2592, 2)
+	expect(result.incomeTax).toBeCloseTo(1793.84, 2)
+	expect(result.net).toBeCloseTo(13614.16, 2)
+})
+
+test('Словакия: необлагаемая часть уменьшается при высокой зарплате', () => {
+	const result = calculateNet(48000, 'SK')
+
+	expect(result.incomeTax).toBeCloseTo(7623.35, 2)
+})
