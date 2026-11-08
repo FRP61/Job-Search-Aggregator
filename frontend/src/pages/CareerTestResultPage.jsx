@@ -5,12 +5,14 @@ import { useCostOfLiving } from '../api/useCostOfLiving'
 import { hollandCode, rankTypes, recommendIndustries, scoresFromQuery } from '../careerTest/riasec'
 import IndustryVacancies from '../components/IndustryVacancies'
 import { SUPPORTED_COUNTRIES } from '../salary/calculateNet'
+import { usePageTitle } from '../components/usePageTitle'
 import styles from './CareerTestResultPage.module.css'
 
 // Страница результата теста: /career-test/result?r=60&i=80&a=20&s=40&e=70&c=30.
 // Всё нужное — в адресе, поэтому результатом можно поделиться ссылкой
 function CareerTestResultPage() {
   const { t, i18n } = useTranslation()
+  usePageTitle(t('careerResult.title'))
   const [searchParams, setSearchParams] = useSearchParams()
   const scores = scoresFromQuery(searchParams)
   const costOfLiving = useCostOfLiving()

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 
 import { ANSWERS, QUESTIONS, scoreAnswers, scoresToQuery } from '../careerTest/riasec'
+import { usePageTitle } from '../components/usePageTitle'
 import styles from './CareerTestPage.module.css'
 
 // Незаконченный тест храним в sessionStorage: если случайно обновить страницу, ответы не пропадут.
@@ -33,6 +34,7 @@ function saveProgress(progress) {
 // Тест профориентации: вступление, потом по одному вопросу на экране
 function CareerTestPage() {
   const { t, i18n } = useTranslation()
+  usePageTitle(t('careerTest.title'))
   const language = i18n.language
   const navigate = useNavigate()
 

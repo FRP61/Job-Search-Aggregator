@@ -6,6 +6,7 @@ import { getCountries, getIndustries, searchVacancies } from '../api/client'
 import { useCostOfLiving } from '../api/useCostOfLiving'
 import CostOfLiving from '../components/CostOfLiving'
 import VacancyCard from '../components/VacancyCard'
+import { usePageTitle } from '../components/usePageTitle'
 import styles from './SearchPage.module.css'
 
 // Сколько вакансий на одной странице результатов
@@ -27,6 +28,7 @@ function parsePage(text) {
 // а кнопки «назад/вперёд» в браузере возвращают прошлые фильтры.
 function SearchPage() {
   const { t, i18n } = useTranslation()
+  usePageTitle(t('search.title'))
   const language = i18n.language
   const [searchParams, setSearchParams] = useSearchParams()
 

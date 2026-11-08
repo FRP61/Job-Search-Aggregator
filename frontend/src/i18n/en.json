@@ -6,7 +6,8 @@
     "label": "Main menu",
     "search": "Job search",
     "calculator": "Salary calculator",
-    "test": "Career test"
+    "test": "Career test",
+    "skipToContent": "Skip to content"
   },
   "home": {
     "title": "Jobs in Europe with real take-home pay",
@@ -69,7 +70,8 @@
     "openCalculator": "Open in the calculator",
     "noSalary": "The employer didn’t state a salary. You can calculate your own in the calculator.",
     "description": "Job description",
-    "noDescription": "The description is on the source site."
+    "noDescription": "The description is on the source site.",
+    "pageTitle": "Vacancy"
   },
   "costOfLiving": {
     "title": "Cost of living: {{country}}",
@@ -246,5 +248,14 @@
     "science": "Science & Research",
     "retail": "Retail",
     "other": "Other"
+  },
+  "footer": {
+    "sources": "Vacancies come from EU job sites (last 30 days). Prices and average pay — Eurostat. Taxes — 2026 rules.",
+    "disclaimer": "Take-home pay figures are estimates, not tax advice."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "There is no such page on the site. The link may be out of date or mistyped.",
+    "home": "Go to the home page"
   }
 }

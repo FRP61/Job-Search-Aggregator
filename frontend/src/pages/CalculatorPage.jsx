@@ -10,6 +10,7 @@ import {
 } from '../salary/calculateNet'
 import { eurRate, EXCHANGE_RATES_DATE } from '../salary/exchangeRates'
 import { currencySymbol, formatDate, formatMoney, formatPercent, formatRate } from '../utils/format'
+import { usePageTitle } from '../components/usePageTitle'
 import styles from './CalculatorPage.module.css'
 
 // Превратить то, что ввёл человек, в число: «2 000,50» → 2000.5.
@@ -69,6 +70,7 @@ function Switch({ legend, name, options, value, onChange }) {
 // Страница калькулятора «брутто → на руки»
 function CalculatorPage() {
   const { t, i18n } = useTranslation()
+  usePageTitle(t('calculator.title'))
   const language = i18n.language
 
   // Начальные значения можно передать в адресе — так открывает калькулятор страница вакансии:
