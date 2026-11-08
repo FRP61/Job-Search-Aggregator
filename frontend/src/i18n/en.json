@@ -191,9 +191,14 @@
     "industries": "Industries that may suit you",
     "match": "{{value}}% match",
     "why": "Fits: {{types}}",
-    "seeVacancies": "See vacancies",
     "disclaimer": "The test helps you find your bearings; it doesn’t decide for you. Look at vacancies in a few industries and compare.",
-    "again": "Take the test again"
+    "again": "Take the test again",
+    "country": "Look for vacancies in:",
+    "loadingVacancies": "Searching for vacancies…",
+    "vacanciesError": "Couldn’t load vacancies.",
+    "noVacancies": "No vacancies in this industry right now. Try another country.",
+    "allVacancies_one": "See {{count}} vacancy →",
+    "allVacancies_other": "See all {{count}} vacancies →"
   },
   "careerTypes": {
     "R": {

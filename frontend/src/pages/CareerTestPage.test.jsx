@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import App from '../App'
 import { QUESTIONS } from '../careerTest/riasec'
+import { mockServer } from '../test/mockServer'
 
 function openAt(path) {
 	window.history.replaceState(null, '', path)
@@ -16,6 +17,12 @@ function answerCurrent(likedTypes) {
 
 beforeEach(() => {
 	sessionStorage.clear()
+	// страница результата сама ищет вакансии — отвечает подделка сервера
+	mockServer()
+})
+
+afterEach(() => {
+	vi.unstubAllGlobals()
 })
 
 test('в шапке есть ссылка на тест; сначала вступление с кнопкой «Почати тест»', () => {
@@ -60,7 +67,6 @@ test('после 30 ответов открывается результат: к
 	expect(screen.getByText('ICR')).toBeInTheDocument()
 	expect(screen.getByRole('heading', { name: /Дослідник/ })).toBeInTheDocument()
 	expect(screen.getByRole('heading', { name: 'IT та розробка' })).toBeInTheDocument()
-	expect(screen.getAllByRole('link', { name: 'Дивитися вакансії' })[0]).toHaveAttribute('href', '/search?industry=it')
 })
 
 test('незаконченный тест не теряется при обновлении страницы', () => {
