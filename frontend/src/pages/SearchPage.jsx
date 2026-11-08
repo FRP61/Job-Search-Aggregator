@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 
 import { getCountries, getIndustries, searchVacancies } from '../api/client'
-import { formatDate } from '../utils/format'
+import { useCostOfLiving } from '../api/useCostOfLiving'
+import CostOfLiving from '../components/CostOfLiving'
+import VacancyCard from '../components/VacancyCard'
 import styles from './SearchPage.module.css'
 
 // Сколько вакансий на одной странице результатов
@@ -18,22 +20,6 @@ function localName(item, language) {
 function parsePage(text) {
   const page = Number(text)
   return Number.isInteger(page) && page >= 1 ? page : 1
-}
-
-// Зарплата вакансии в целых евро: «30 000 – 45 000 €», «від 30 000 €», «до 45 000 €»; нет — null
-function formatSalary(min, max, language, t) {
-  const money = (value) =>
-    new Intl.NumberFormat(language, {
-      style: 'currency',
-      currency: 'EUR',
-      currencyDisplay: 'narrowSymbol',
-      maximumFractionDigits: 0,
-    }).format(value)
-  if (min && max && min !== max) return t('search.salaryRange', { min: money(min), max: money(max) })
-  if (min && max) return money(min)
-  if (min) return t('search.salaryFrom', { amount: money(min) })
-  if (max) return t('search.salaryTo', { amount: money(max) })
-  return null
 }
 
 // Страница поиска вакансий. Фильтры живут в адресе страницы:
@@ -81,6 +67,10 @@ function SearchPage() {
     // страница закрылась раньше, чем пришёл ответ — запрос больше не нужен
     return () => controller.abort()
   }, [optionsAttempt])
+
+  // Стоимость жизни по странам: блок над результатами и «реальный доход» в карточках
+  const costOfLiving = useCostOfLiving()
+  const countryCostOfLiving = country ? costOfLiving.byCountry[country] : null
 
   // Результаты поиска: загружаем заново при каждом изменении фильтров в адресе
   const [searchAttempt, setSearchAttempt] = useState(0)
@@ -131,11 +121,6 @@ function SearchPage() {
     window.scrollTo?.(0, 0)
   }
 
-  // Названия для карточек: код страны → название на языке сайта
-  const countryName = (code) => {
-    const found = options.countries.find((item) => item.code === code)
-    return found ? localName(found, language) : t(`countries.${code}`, { defaultValue: code })
-  }
   const sortByName = (items) => [...items].sort((a, b) => localName(a, language).localeCompare(localName(b, language), language))
 
   const hasFilters = Boolean(country || industry || query)
@@ -207,6 +192,8 @@ function SearchPage() {
         </p>
       )}
 
+      {countryCostOfLiving && <CostOfLiving item={countryCostOfLiving} total={costOfLiving.count} />}
+
       <div className={styles.results} aria-live="polite" aria-busy={results.status === 'loading'}>
         {results.status === 'loading' && (
           <p className={styles.message} role="status">
@@ -248,32 +235,11 @@ function SearchPage() {
             <p className={styles.count}>{t('search.found', { count: results.data.total })}</p>
 
             <ul className={styles.list}>
-              {results.data.items.map((vacancy) => {
-                const salary = formatSalary(vacancy.salary_annual_min_eur, vacancy.salary_annual_max_eur, language, t)
-                const place = [vacancy.city, vacancy.countries.map(countryName).join(', ')].filter(Boolean).join(', ')
-                return (
-                  <li key={vacancy.id} className={styles.item}>
-                    <h2 className={styles.itemTitle}>
-                      <a href={vacancy.url} target="_blank" rel="noopener noreferrer">
-                        {vacancy.title}
-                      </a>
-                    </h2>
-                    <p className={styles.itemMeta}>
-                      {[vacancy.company, place].filter(Boolean).join(' · ')}
-                      {vacancy.remote && <span className={styles.badge}>{t('search.remote')}</span>}
-                    </p>
-                    {salary && (
-                      <p className={styles.salary}>
-                        {salary} <span className={styles.salaryNote}>{t('search.salaryNote')}</span>
-                      </p>
-                    )}
-                    <p className={styles.itemFooter}>
-                      {vacancy.industry && <span>{localName(vacancy.industry, language)}</span>}
-                      <span>{t('search.posted', { date: formatDate(vacancy.posted_at, language) })}</span>
-                    </p>
-                  </li>
-                )
-              })}
+              {results.data.items.map((vacancy) => (
+                <li key={vacancy.id}>
+                  <VacancyCard vacancy={vacancy} preferredCountry={country} costOfLiving={costOfLiving.byCountry} />
+                </li>
+              ))}
             </ul>
 
             {totalPages > 1 && (

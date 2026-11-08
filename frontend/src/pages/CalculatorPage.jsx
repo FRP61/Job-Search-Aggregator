@@ -22,6 +22,19 @@ function parseAmount(text) {
 // Страна, открытая по умолчанию
 const DEFAULT_COUNTRY = 'EE'
 
+// Начальные значения формы из адреса страницы; всё непонятное — по умолчанию
+function startValues(params) {
+  const code = params.get('country')?.toUpperCase()
+  const country = SUPPORTED_COUNTRIES.includes(code) ? code : DEFAULT_COUNTRY
+  const amount = parseAmount(params.get('gross') ?? '')
+  return {
+    country,
+    amountText: amount === null ? '' : String(amount),
+    period: params.get('period') === 'year' ? 'year' : 'month',
+    currency: params.get('currency') === 'EUR' ? 'EUR' : currencyOf(country),
+  }
+}
+
 // Разделить годовую сумму на выплаты (обычно 12, в Австрии и Греции 14), с точностью до цента
 function perPayment(annualAmount, payments = 12) {
   return Math.round((annualAmount / payments) * 100) / 100
@@ -58,12 +71,17 @@ function CalculatorPage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
 
+  // Начальные значения можно передать в адресе — так открывает калькулятор страница вакансии:
+  // /calculator?country=PL&gross=36000&period=year&currency=EUR
+  // (читаем адрес один раз при открытии страницы)
+  const [start] = useState(() => startValues(new URLSearchParams(window.location.search)))
+
   // То, что выбрал и ввёл человек
-  const [country, setCountry] = useState(DEFAULT_COUNTRY)
-  const [amountText, setAmountText] = useState('')
-  const [period, setPeriod] = useState('month')
+  const [country, setCountry] = useState(start.country)
+  const [amountText, setAmountText] = useState(start.amountText)
+  const [period, setPeriod] = useState(start.period)
   // В какой валюте введена сумма. Для страны не в евро по умолчанию — её валюта
-  const [currency, setCurrency] = useState(currencyOf(DEFAULT_COUNTRY))
+  const [currency, setCurrency] = useState(start.currency)
 
   // Валюта, в которой страна считает налоги, и есть ли смысл в выборе валюты
   const localCurrency = currencyOf(country)
