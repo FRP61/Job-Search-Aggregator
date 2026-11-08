@@ -26,6 +26,7 @@ import { romania } from './rules/ro'
 import { sweden } from './rules/se'
 import { slovenia } from './rules/si'
 import { slovakia } from './rules/sk'
+import { ukraine } from './rules/ua'
 
 // Налоговые правила по коду страны. Новую страну добавляем сюда.
 const RULES_BY_COUNTRY = {
@@ -56,6 +57,7 @@ const RULES_BY_COUNTRY = {
   FI: finland,
   SE: sweden,
   DK: denmark,
+  UA: ukraine,
 }
 
 // Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', ...]

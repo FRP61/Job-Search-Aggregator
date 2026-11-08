@@ -12,6 +12,9 @@ export const EUR_EXCHANGE_RATES = {
   PLN: 4.3925,
   RON: 5.3403,
   SEK: 11.026,
+  // Гривню ЕЦБ не публикует: официальный курс НБУ на ту же дату
+  // (https://mind.ua/news/20311868-nbu-vstanoviv-oficijnij-kurs-valyut-na-6-listopada-dolar-i-evro-deshevshayut)
+  UAH: 51.04,
 }
 
 // Курс для валюты; для неизвестной валюты — null
