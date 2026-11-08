@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Свои настройки (адрес API и т. п.) не коммитим; пример — в .env.example
+.env
+.env.*
+!.env.example

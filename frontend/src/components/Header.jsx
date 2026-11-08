@@ -17,6 +17,12 @@ function Header() {
 
       <nav className={styles.nav} aria-label={t('nav.label')}>
         <NavLink
+          to="/search"
+          className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+        >
+          {t('nav.search')}
+        </NavLink>
+        <NavLink
           to="/calculator"
           className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
         >

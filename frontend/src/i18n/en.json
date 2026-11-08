@@ -4,6 +4,7 @@
   },
   "nav": {
     "label": "Main menu",
+    "search": "Job search",
     "calculator": "Salary calculator"
   },
   "home": {
@@ -11,6 +12,38 @@
     "subtitle": "Vacancies from 27 EU countries: what you take home and what it buys",
     "searchJobs": "Search jobs",
     "takeTest": "Take the career test"
+  },
+  "search": {
+    "title": "Job search",
+    "intro": "Vacancies from the last 30 days from job sites across the EU, newest first.",
+    "country": "Country",
+    "allCountries": "All countries",
+    "industry": "Industry",
+    "allIndustries": "All industries",
+    "query": "Keyword",
+    "queryPlaceholder": "e.g. python or a company name",
+    "submit": "Search",
+    "loading": "Searching for vacancies…",
+    "error": "Couldn’t load vacancies. Check your connection or that the server is running, and try again.",
+    "optionsError": "Couldn’t load the lists of countries and industries.",
+    "retry": "Try again",
+    "emptyFiltered": "Nothing found for these filters. Try another country, industry or keyword.",
+    "emptyAll": "There are no vacancies yet.",
+    "resetFilters": "Reset filters",
+    "found_one": "{{count}} vacancy found",
+    "found_other": "{{count}} vacancies found",
+    "remote": "Remote",
+    "salaryRange": "{{min}} – {{max}}",
+    "salaryFrom": "from {{amount}}",
+    "salaryTo": "up to {{amount}}",
+    "salaryNote": "per year, gross",
+    "posted": "Posted {{date}}",
+    "pagination": "Result pages",
+    "previous": "← Previous",
+    "next": "Next →",
+    "pageOf": "Page {{page}} of {{total}}",
+    "noSuchPage": "There is no such page.",
+    "firstPage": "Go to the first page"
   },
   "calculator": {
     "title": "Salary calculator",
