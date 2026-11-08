@@ -52,7 +52,13 @@
       "NL": "Netherlands: employees pay no separate social contributions — they are built into the 35.75–49.5% tax rates; minus the general and labour tax credits; no employer pension fund, no 30% expat ruling.",
       "BE": "Belgium: 13.07% social security plus the special social security contribution; 30% employee expenses (up to €5,930); 25–50% tax with a reduction for the €11,550 tax-free amount; 7% municipal surcharge.",
       "LU": "Luxembourg: tax class 1; 3.05% health, 8.5% pension, 1.4% care insurance; 0–42% tax (2025 scale) plus 7% employment fund surcharge; without the employee tax credit (CIS).",
-      "FR": "France: non-executive private-sector employee, 1 tax share; ~21% contributions (pension, AGIRC-ARRCO, CSG/CRDS) without mutuelle; 0–45% tax after the 10% deduction and the décote."
+      "FR": "France: non-executive private-sector employee, 1 tax share; ~21% contributions (pension, AGIRC-ARRCO, CSG/CRDS) without mutuelle; 0–45% tax after the 10% deduction and the décote.",
+      "IT": "Italy: 9.19% INPS; 23/33/43% IRPEF minus the employee and tax-wedge credits; regional and municipal surcharges ~2.5% (vary by city); income up to €20,000 gets a tax-free bonus, so tax can be negative.",
+      "ES": "Spain: 6.5% social security up to €5,101.20 a month; 19–47% IRPF on the general scale (regional part varies), €5,550 personal allowance, €2,000 other expenses.",
+      "PT": "Portugal: 11% social security; 12.2–48% IRS (reduced 2026 rates), €4,587.09 specific deduction; without IRS Jovem or expense deductions.",
+      "FI": "Finland: 7.3% pension, 0.89% unemployment, 0.88% sickness; 12.64–37.5% state tax and 7.57% municipal (average), 1.10% health care contribution and Yle tax included in the tax line; no church tax.",
+      "SE": "Sweden: taxes are calculated in kronor at the ECB rate of {{date}} (€1 = {{rate}} kr); 32.38% municipal tax (average), 20% state tax above 643,000 kr; the 7% pension fee is refunded as a tax reduction; without burial and church fees.",
+      "DK": "Denmark: taxes are calculated in kroner at the ECB rate of {{date}} (€1 = {{rate}} kr); 8% AM-bidrag and ATP; 25% municipal tax (average) and 12.01% state tax (+7.5% above 641,200 kr); no church tax."
     },
     "currency": "Currency",
     "netInEur": "≈ {{amount}} take-home per month",
@@ -79,6 +85,12 @@
     "NL": "Netherlands",
     "BE": "Belgium",
     "LU": "Luxembourg",
-    "FR": "France"
+    "FR": "France",
+    "IT": "Italy",
+    "ES": "Spain",
+    "PT": "Portugal",
+    "FI": "Finland",
+    "SE": "Sweden",
+    "DK": "Denmark"
   }
 }

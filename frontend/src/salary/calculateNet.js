@@ -5,19 +5,25 @@ import { bulgaria } from './rules/bg'
 import { cyprus } from './rules/cy'
 import { czechia } from './rules/cz'
 import { germany } from './rules/de'
+import { denmark } from './rules/dk'
 import { estonia } from './rules/ee'
+import { spain } from './rules/es'
+import { finland } from './rules/fi'
 import { france } from './rules/fr'
 import { greece } from './rules/gr'
 import { croatia } from './rules/hr'
 import { hungary } from './rules/hu'
 import { ireland } from './rules/ie'
+import { italy } from './rules/it'
 import { lithuania } from './rules/lt'
 import { luxembourg } from './rules/lu'
 import { latvia } from './rules/lv'
 import { malta } from './rules/mt'
 import { netherlands } from './rules/nl'
 import { poland } from './rules/pl'
+import { portugal } from './rules/pt'
 import { romania } from './rules/ro'
+import { sweden } from './rules/se'
 import { slovenia } from './rules/si'
 import { slovakia } from './rules/sk'
 
@@ -44,6 +50,12 @@ const RULES_BY_COUNTRY = {
   BE: belgium,
   LU: luxembourg,
   FR: france,
+  IT: italy,
+  ES: spain,
+  PT: portugal,
+  FI: finland,
+  SE: sweden,
+  DK: denmark,
 }
 
 // Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', ...]
@@ -160,7 +172,8 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   const taxBeforeCredit = formula
     ? formula(taxableIncome, { gross: grossAnnual, socialContributions, contributionsById })
     : taxByBrackets(taxableIncome, brackets)
-  const taxAfterCredit = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
+  // скидка с налога не делает его меньше нуля; формула может вернуть минус (итальянская доплата)
+  const taxAfterCredit = taxCredit ? Math.max(0, taxBeforeCredit - taxCredit) : taxBeforeCredit
   // surchargeRate — надбавка в процентах к налогу (люксембургский фонд занятости)
   const tax = surchargeRate ? taxAfterCredit * (1 + surchargeRate(taxableIncome)) : taxAfterCredit
   const incomeTax = roundToCents(tax + solidaritySurcharge(tax, solidarity))
