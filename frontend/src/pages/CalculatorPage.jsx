@@ -13,6 +13,9 @@ function parseAmount(text) {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+// Страна, открытая по умолчанию
+const DEFAULT_COUNTRY = 'EE'
+
 // Разделить годовую сумму на месяцы, с точностью до цента
 function perMonth(annualAmount) {
   return Math.round((annualAmount / 12) * 100) / 100
@@ -50,15 +53,20 @@ function CalculatorPage() {
   const language = i18n.language
 
   // То, что выбрал и ввёл человек
-  const [country, setCountry] = useState(SUPPORTED_COUNTRIES[0])
+  const [country, setCountry] = useState(DEFAULT_COUNTRY)
   const [amountText, setAmountText] = useState('')
   const [period, setPeriod] = useState('month')
   // В какой валюте введена сумма. Для страны не в евро по умолчанию — её валюта
-  const [currency, setCurrency] = useState(currencyOf(SUPPORTED_COUNTRIES[0]))
+  const [currency, setCurrency] = useState(currencyOf(DEFAULT_COUNTRY))
 
   // Валюта, в которой страна считает налоги, и есть ли смысл в выборе валюты
   const localCurrency = currencyOf(country)
   const canChooseCurrency = localCurrency !== 'EUR'
+
+  // Страны в списке — по алфавиту на языке сайта
+  const sortedCountries = [...SUPPORTED_COUNTRIES].sort((a, b) =>
+    t(`countries.${a}`).localeCompare(t(`countries.${b}`), language),
+  )
 
   function chooseCountry(code) {
     setCountry(code)
@@ -95,7 +103,7 @@ function CalculatorPage() {
         <div className={styles.field}>
           <label htmlFor="calculator-country">{t('calculator.country')}</label>
           <select id="calculator-country" value={country} onChange={(event) => chooseCountry(event.target.value)}>
-            {SUPPORTED_COUNTRIES.map((code) => (
+            {sortedCountries.map((code) => (
               <option key={code} value={code}>
                 {t(`countries.${code}`)}
               </option>
