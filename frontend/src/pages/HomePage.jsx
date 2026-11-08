@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 
 import styles from './HomePage.module.css'
 
 // Главная страница: заголовок, короткое описание и две кнопки.
-// Кнопки ведут на страницы поиска и теста — их сделаем на следующих этапах.
+// Кнопки ведут на страницу поиска и на тест (тест сделаем на следующих этапах).
 function HomePage() {
   const { t } = useTranslation()
 
@@ -13,9 +14,9 @@ function HomePage() {
       <p className={styles.subtitle}>{t('home.subtitle')}</p>
 
       <div className={styles.actions}>
-        <a href="/search" className={styles.primaryButton}>
+        <Link to="/search" className={styles.primaryButton}>
           {t('home.searchJobs')}
-        </a>
+        </Link>
         <a href="/career-test" className={styles.secondaryButton}>
           {t('home.takeTest')}
         </a>
