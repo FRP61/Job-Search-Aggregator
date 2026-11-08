@@ -227,3 +227,43 @@ test('Словения: 24 000 € брутто в год → 15 600,76 € на
 	expect(result.incomeTax).toBeCloseTo(2382.92, 2)
 	expect(result.net).toBeCloseTo(15600.76, 2)
 })
+
+test('Нидерланды: 50 000 € брутто в год → 39 140,33 € на руки', () => {
+	const result = calculateNet(50000, 'NL')
+
+	expect(result.socialContributions).toBe(0)
+	expect(result.incomeTax).toBeCloseTo(10859.67, 2)
+	expect(result.net).toBeCloseTo(39140.33, 2)
+})
+
+test('Бельгия: 48 000 € брутто в год → 31 380,28 € на руки', () => {
+	const result = calculateNet(48000, 'BE')
+
+	expect(result.socialContributions).toBeCloseTo(6735.72, 2)
+	expect(result.incomeTax).toBeCloseTo(9884, 2)
+	expect(result.net).toBeCloseTo(31380.28, 2)
+})
+
+test('Люксембург: 56 400 € брутто в год → 42 023,83 € на руки', () => {
+	const result = calculateNet(56400, 'LU')
+
+	expect(result.socialContributions).toBeCloseTo(7190.24, 2)
+	expect(result.incomeTax).toBeCloseTo(7185.93, 2)
+	expect(result.net).toBeCloseTo(42023.83, 2)
+})
+
+test('Франция: 36 000 € брутто в год — налог уменьшает скидка décote', () => {
+	const result = calculateNet(36000, 'FR')
+
+	expect(result.socialContributions).toBeCloseTo(7502.49, 2)
+	expect(result.incomeTax).toBeCloseTo(1518.98, 2)
+	expect(result.net).toBeCloseTo(26978.53, 2)
+})
+
+test('Франция: 60 000 € брутто в год — часть зарплаты выше потолка PSS', () => {
+	const result = calculateNet(60000, 'FR')
+
+	expect(result.socialContributions).toBeCloseTo(12378.78, 2)
+	expect(result.incomeTax).toBeCloseTo(6423.3, 2)
+	expect(result.net).toBeCloseTo(41197.92, 2)
+})

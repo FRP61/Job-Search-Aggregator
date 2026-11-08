@@ -1,17 +1,21 @@
 import { eurRate } from './exchangeRates'
 import { austria } from './rules/at'
+import { belgium } from './rules/be'
 import { bulgaria } from './rules/bg'
 import { cyprus } from './rules/cy'
 import { czechia } from './rules/cz'
 import { germany } from './rules/de'
 import { estonia } from './rules/ee'
+import { france } from './rules/fr'
 import { greece } from './rules/gr'
 import { croatia } from './rules/hr'
 import { hungary } from './rules/hu'
 import { ireland } from './rules/ie'
 import { lithuania } from './rules/lt'
+import { luxembourg } from './rules/lu'
 import { latvia } from './rules/lv'
 import { malta } from './rules/mt'
+import { netherlands } from './rules/nl'
 import { poland } from './rules/pl'
 import { romania } from './rules/ro'
 import { slovenia } from './rules/si'
@@ -36,6 +40,10 @@ const RULES_BY_COUNTRY = {
   GR: greece,
   HR: croatia,
   SI: slovenia,
+  NL: netherlands,
+  BE: belgium,
+  LU: luxembourg,
+  FR: france,
 }
 
 // Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', ...]
@@ -119,9 +127,13 @@ export function calculateNetLocal(grossAnnual, countryCode) {
     // shareOfGross — взнос только с части зарплаты (австрийские 13-я и 14-я зарплаты = 2/14)
     const fromGross = grossAnnual * (contribution.shareOfGross ?? 1)
     const fullBase = contribution.afterPreviousContributions ? grossAnnual - socialContributions : fromGross
-    // capBase — потолок: взнос берётся только с этой части (если потолок есть)
-    const base = Math.min(fullBase, contribution.capBase ?? Infinity)
-    let amount = contribution.fixedAnnual ?? roundToCents(base * contribution.rate)
+    // capBase — потолок: взнос берётся только с этой части (если потолок есть);
+    // fromBase — взнос только с части выше этой суммы (французская «вторая полоса», люксембургский уход)
+    const base = Math.max(0, Math.min(fullBase, contribution.capBase ?? Infinity) - (contribution.fromBase ?? 0))
+    // fixedAnnual — фиксированная сумма в год (Словения); amount — своя формула (Бельгия)
+    let amount = contribution.amount
+      ? roundToCents(contribution.amount(grossAnnual))
+      : (contribution.fixedAnnual ?? roundToCents(base * contribution.rate))
     // exemptUpTo — при зарплате до этой суммы взнос не платится вообще (ирландский PRSI)
     if (contribution.exemptUpTo && grossAnnual <= contribution.exemptUpTo) {
       amount = 0
@@ -143,12 +155,14 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   // 3. Подоходный налог: по формуле (Германия) или по ступеням,
   //    минус скидка с налога (если она есть, как в Польше),
   //    плюс надбавка солидарности (если она есть, как в Германии)
-  const { formula, brackets, taxCredit, solidarity } = rules.incomeTax
+  const { formula, brackets, taxCredit, solidarity, surchargeRate } = rules.incomeTax
   // формула получает и брутто — в некоторых странах скидки с налога зависят от зарплаты
   const taxBeforeCredit = formula
     ? formula(taxableIncome, { gross: grossAnnual, socialContributions, contributionsById })
     : taxByBrackets(taxableIncome, brackets)
-  const tax = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
+  const taxAfterCredit = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
+  // surchargeRate — надбавка в процентах к налогу (люксембургский фонд занятости)
+  const tax = surchargeRate ? taxAfterCredit * (1 + surchargeRate(taxableIncome)) : taxAfterCredit
   const incomeTax = roundToCents(tax + solidaritySurcharge(tax, solidarity))
 
   // 4. На руки и доля налогов в процентах (один знак после запятой)
