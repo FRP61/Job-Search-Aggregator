@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 
 import LanguageSwitcher from './LanguageSwitcher'
 import styles from './Header.module.css'
@@ -8,6 +8,10 @@ import styles from './Header.module.css'
 // Слева название сайта, дальше меню, справа переключатель языка.
 function Header() {
   const { t } = useTranslation()
+  const { pathname } = useLocation()
+  const linkClass = ({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)
+  // страница вакансии — тоже часть поиска
+  const searchClass = ({ isActive }) => linkClass({ isActive: isActive || pathname.startsWith('/vacancies/') })
 
   return (
     <header className={styles.header}>
@@ -16,22 +20,13 @@ function Header() {
       </Link>
 
       <nav className={styles.nav} aria-label={t('nav.label')}>
-        <NavLink
-          to="/search"
-          className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
-        >
+        <NavLink to="/search" className={searchClass}>
           {t('nav.search')}
         </NavLink>
-        <NavLink
-          to="/calculator"
-          className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
-        >
+        <NavLink to="/calculator" className={linkClass}>
           {t('nav.calculator')}
         </NavLink>
-        <NavLink
-          to="/career-test"
-          className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
-        >
+        <NavLink to="/career-test" className={linkClass}>
           {t('nav.test')}
         </NavLink>
       </nav>

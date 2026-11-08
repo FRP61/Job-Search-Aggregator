@@ -25,10 +25,16 @@
 
 .navLink {
   padding: 4px 0;
+  white-space: nowrap;
   border-bottom: 2px solid transparent;
   color: var(--color-muted);
   font-weight: 600;
   text-decoration: none;
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .navLink:hover {
@@ -52,8 +58,11 @@
     font-size: 17px;
   }
 
+  /* пункты меню не разрываются посередине; не помещаются — переносятся на следующую строку */
   .nav {
     order: 3;
     flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: 4px 16px;
   }
 }

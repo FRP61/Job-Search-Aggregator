@@ -8,6 +8,7 @@ import { useCostOfLiving } from '../api/useCostOfLiving'
 import CostOfLiving from '../components/CostOfLiving'
 import { formatDate, formatPercent } from '../utils/format'
 import { breakdownRange, formatRange, grossRange, inEuPrices, mapRange, perMonth, pickCountry } from '../vacancies/vacancyMoney'
+import { usePageTitle } from '../components/usePageTitle'
 import styles from './VacancyPage.module.css'
 
 // Теги, которые оставляем в описании вакансии. Всё остальное (скрипты, стили, картинки, ссылки,
@@ -83,6 +84,7 @@ function VacancyPage() {
   const requestKey = `${id}:${attempt}`
   const [loaded, setLoaded] = useState({ key: null, status: 'loading', vacancy: null })
   const state = loaded.key === requestKey ? loaded : { status: 'loading', vacancy: null }
+  usePageTitle(state.vacancy?.title ?? t('vacancyPage.pageTitle'))
 
   useEffect(() => {
     const controller = new AbortController()
