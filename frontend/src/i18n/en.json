@@ -41,10 +41,18 @@
       "RO": "Romania: taxes are calculated in lei at the ECB rate of {{date}} (€1 = {{rate}} lei); 25% pension, 10% health, 10% income tax; the personal deduction for pay up to 6,325 lei a month is approximate.",
       "HU": "Hungary: taxes are calculated in forints at the ECB rate of {{date}} (€1 = {{rate}} Ft); 18.5% contribution and 15% income tax on the whole salary; without the under-25 and mothers’ exemptions.",
       "CZ": "Czechia: taxes are calculated in koruna at the ECB rate of {{date}} (€1 = {{rate}} Kč); 11.6% contributions do not reduce the tax; 15% income tax (23% above 1,762,812 Kč a year) minus a 2,570 Kč monthly credit.",
-      "SK": "Slovakia: 14.4% contributions (5% health from 2026); the €5,966.73 yearly tax-free part shrinks for higher pay; 19–35% income tax; no children."
+      "SK": "Slovakia: 14.4% contributions (5% health from 2026); the €5,966.73 yearly tax-free part shrinks for higher pay; 19–35% income tax; no children.",
+      "AT": "Austria: 18.07% social insurance (17.07% on the 13th and 14th salaries); the 13th and 14th are taxed at 6% after a €620 exemption; salaried employee without children or commuter allowance.",
+      "IE": "Ireland: 20% tax up to €44,000 and 40% above minus €4,000 of credits; USC 0.5–8%; PRSI 4.2% (4.35% from October 2026).",
+      "CY": "Cyprus: no tax up to €22,000 a year (2026 reform); 8.8% social insurance and 2.65% GESY; without the 50% expat exemption.",
+      "MT": "Malta: single rates 0–35%; 10% social security, at most €55.93 a week; without statutory bonuses and COLA.",
+      "GR": "Greece: 13.37% EFKA; 9–44% income tax minus a credit of up to €777; no children, over 25.",
+      "HR": "Croatia: 20% pension contribution, €600 monthly personal allowance, Zagreb rates of 23% and 33% (above €5,000 of monthly base); health insurance is paid by the employer.",
+      "SI": "Slovenia: 23.1% contributions (incl. 1% long-term care) plus a fixed €39.36 monthly health contribution; €5,551.93 general allowance; 16–50% tax; without the extra allowance for low pay."
     },
     "currency": "Currency",
-    "netInEur": "≈ {{amount}} take-home per month"
+    "netInEur": "≈ {{amount}} take-home per month",
+    "paymentsNote": "Salary here is paid {{count}} times a year, so “per month” means one payment."
   },
   "countries": {
     "EE": "Estonia",
@@ -56,6 +64,13 @@
     "RO": "Romania",
     "HU": "Hungary",
     "CZ": "Czechia",
-    "SK": "Slovakia"
+    "SK": "Slovakia",
+    "AT": "Austria",
+    "IE": "Ireland",
+    "CY": "Cyprus",
+    "MT": "Malta",
+    "GR": "Greece",
+    "HR": "Croatia",
+    "SI": "Slovenia"
   }
 }
