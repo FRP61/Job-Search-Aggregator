@@ -1,0 +1,41 @@
+.box {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: var(--color-primary-light);
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 24px;
+  margin: 0 0 8px;
+}
+
+.facts dt {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.facts dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.source {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .facts {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,52 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import App from '../App'
+import { mockServer, page, requestedUrls, VACANCY } from '../test/mockServer'
 
-// Маленькие «ответы сервера» для тестов
-const COUNTRIES = [
-	{ code: 'PL', name_en: 'Poland', name_uk: 'Польща', currency: 'PLN' },
-	{ code: 'EE', name_en: 'Estonia', name_uk: 'Естонія', currency: 'EUR' },
-]
-const INDUSTRIES = [
-	{ slug: 'it', name_en: 'IT', name_uk: 'ІТ' },
-	{ slug: 'finance', name_en: 'Finance', name_uk: 'Фінанси' },
-]
-const VACANCY = {
-	id: 1,
-	source: 'justjoin',
-	title: 'Python Developer',
-	company: 'Acme',
-	countries: ['PL'],
-	city: 'Warszawa',
-	url: 'https://example.com/jobs/1',
-	remote: true,
-	industry: { slug: 'it', name_en: 'IT', name_uk: 'ІТ' },
-	salary_annual_min_eur: 30000,
-	salary_annual_max_eur: 45000,
-	posted_at: '2026-11-05T10:00:00Z',
-	other_sources: [],
-}
-
-function page(items, total = items.length, number = 1) {
-	return { total, page: number, page_size: 20, items }
-}
-
-// Подделка сервера: смотрит на адрес запроса и отвечает.
-// vacancies — что вернуть на поиск (объект или функция от адреса); fail — ответить ошибкой 500
-function mockServer({ vacancies = page([VACANCY]), fail = false } = {}) {
-	const fetchMock = vi.fn(async (url) => {
-		const json = (data) => ({ ok: true, status: 200, json: async () => data })
-		if (url.includes('/countries')) return json(COUNTRIES)
-		if (url.includes('/industries')) return json(INDUSTRIES)
-		if (fail) return { ok: false, status: 500, json: async () => ({}) }
-		return json(typeof vacancies === 'function' ? vacancies(url) : vacancies)
-	})
-	vi.stubGlobal('fetch', fetchMock)
-	return fetchMock
-}
-
-// Адреса всех запросов поиска вакансий
+// Адреса запросов поиска вакансий
 function searchUrls(fetchMock) {
-	return fetchMock.mock.calls.map(([url]) => url).filter((url) => url.includes('/vacancies'))
+	return requestedUrls(fetchMock, '/vacancies')
 }
 
 // Открыть сайт сразу на нужном адресе
@@ -88,7 +46,47 @@ test('пока идёт поиск, видно «Шукаємо вакансії
 	expect(screen.getByText('Acme · Warszawa, Польща')).toBeInTheDocument()
 	expect(screen.getByText('30 000 € – 45 000 €')).toBeInTheDocument()
 	expect(screen.getByText('Віддалено')).toBeInTheDocument()
-	expect(screen.getByRole('link', { name: 'Python Developer' })).toHaveAttribute('href', 'https://example.com/jobs/1')
+	expect(screen.getByRole('link', { name: 'Python Developer' })).toHaveAttribute('href', '/vacancies/1?country=PL')
+})
+
+test('в карточке — «на руки» по налогам страны и «реальный доход» в ценах ЕС', async () => {
+	mockServer()
+	openAt('/search')
+
+	// 30 000 € в Польше → 21 352,26 € на руки в год → 1 779 € в месяц; 45 000 € → 2 451 €
+	expect(await screen.findByText('≈ 1 779 € – 2 451 € на руки на місяць')).toBeInTheDocument()
+	expect(screen.getByText('у середньому, за податками країни: Польща')).toBeInTheDocument()
+	// уровень цен в Польше 70,2% от ЕС: 1 779 / 0,702 ≈ 2 535 €
+	expect(await screen.findByText('≈ 2 535 € – 3 491 € у цінах середнього ЄС')).toBeInTheDocument()
+})
+
+test('вакансия без зарплаты — без строк про деньги', async () => {
+	mockServer({ vacancies: page([{ ...VACANCY, salary_annual_min_eur: null, salary_annual_max_eur: null }]) })
+	openAt('/search')
+
+	await screen.findByText('Python Developer')
+
+	expect(screen.queryByText(/на руки на місяць/)).not.toBeInTheDocument()
+})
+
+test('выбрана страна → над результатами блок «Вартість життя»', async () => {
+	mockServer()
+	openAt('/search?country=PL')
+
+	const block = await screen.findByRole('complementary', { name: 'Вартість життя: Польща' })
+
+	expect(block).toHaveTextContent('70,2% від середнього в ЄС')
+	expect(block).toHaveTextContent('1 445 € на місяць')
+	expect(block).toHaveTextContent('86 (ЄС = 100), 15 місце з 2')
+})
+
+test('индексы стоимости жизни не загрузились — поиск всё равно работает', async () => {
+	mockServer({ costOfLivingFails: true })
+	openAt('/search?country=PL')
+
+	expect(await screen.findByText('≈ 1 779 € – 2 451 € на руки на місяць')).toBeInTheDocument()
+	expect(screen.queryByText(/Вартість життя/)).not.toBeInTheDocument()
+	expect(screen.queryByText(/у цінах середнього ЄС/)).not.toBeInTheDocument()
 })
 
 test('фильтры из адреса страницы попадают в запрос и в форму', async () => {

@@ -35,3 +35,13 @@ export function formatRate(value, language) {
 export function formatDate(isoDate, language) {
   return new Intl.DateTimeFormat(language, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(isoDate))
 }
+
+// Сумма в целых единицах, без копеек: «30 000 €» / «€30,000» — для зарплат вакансий
+export function formatMoneyWhole(amount, language, currency = 'EUR') {
+  return new Intl.NumberFormat(language, {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
