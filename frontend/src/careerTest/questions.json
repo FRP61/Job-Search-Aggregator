@@ -1,0 +1,182 @@
+[
+  {
+    "id": "r1",
+    "type": "R",
+    "uk": "Ремонтувати техніку, меблі чи велосипед",
+    "en": "Repair appliances, furniture or a bike"
+  },
+  {
+    "id": "i1",
+    "type": "I",
+    "uk": "Розбиратися, як влаштовані речі і чому вони працюють",
+    "en": "Figure out how things work and why"
+  },
+  {
+    "id": "a1",
+    "type": "A",
+    "uk": "Малювати, фотографувати або робити дизайн",
+    "en": "Draw, take photos or design things"
+  },
+  {
+    "id": "s1",
+    "type": "S",
+    "uk": "Пояснювати іншим те, що знаю сам",
+    "en": "Explain things I know to other people"
+  },
+  {
+    "id": "e1",
+    "type": "E",
+    "uk": "Переконувати людей і домовлятися",
+    "en": "Persuade people and negotiate"
+  },
+  {
+    "id": "c1",
+    "type": "C",
+    "uk": "Вести таблиці, облік і документи",
+    "en": "Keep spreadsheets, records and documents"
+  },
+  {
+    "id": "r2",
+    "type": "R",
+    "uk": "Працювати з інструментами або на верстаті",
+    "en": "Work with tools or machines"
+  },
+  {
+    "id": "i2",
+    "type": "I",
+    "uk": "Ставити експерименти й аналізувати результати",
+    "en": "Run experiments and analyse the results"
+  },
+  {
+    "id": "a2",
+    "type": "A",
+    "uk": "Писати тексти, історії чи пости",
+    "en": "Write texts, stories or posts"
+  },
+  {
+    "id": "s2",
+    "type": "S",
+    "uk": "Допомагати людям розв’язувати їхні проблеми",
+    "en": "Help people solve their problems"
+  },
+  {
+    "id": "e2",
+    "type": "E",
+    "uk": "Керувати командою або проєктом",
+    "en": "Lead a team or a project"
+  },
+  {
+    "id": "c2",
+    "type": "C",
+    "uk": "Перевіряти цифри й шукати помилки",
+    "en": "Check numbers and look for mistakes"
+  },
+  {
+    "id": "r3",
+    "type": "R",
+    "uk": "Будувати, монтувати, збирати щось руками",
+    "en": "Build, install or assemble things by hand"
+  },
+  {
+    "id": "i3",
+    "type": "I",
+    "uk": "Розв’язувати складні задачі з математики чи логіки",
+    "en": "Solve hard maths or logic problems"
+  },
+  {
+    "id": "a3",
+    "type": "A",
+    "uk": "Придумувати нові ідеї там, де немає готових правил",
+    "en": "Come up with new ideas where there are no set rules"
+  },
+  {
+    "id": "s3",
+    "type": "S",
+    "uk": "Доглядати за хворими, дітьми або літніми людьми",
+    "en": "Take care of sick people, children or the elderly"
+  },
+  {
+    "id": "e3",
+    "type": "E",
+    "uk": "Продавати товари чи послуги",
+    "en": "Sell products or services"
+  },
+  {
+    "id": "c3",
+    "type": "C",
+    "uk": "Працювати за чіткими правилами та інструкціями",
+    "en": "Work by clear rules and instructions"
+  },
+  {
+    "id": "r4",
+    "type": "R",
+    "uk": "Керувати автомобілем, навантажувачем чи іншою технікою",
+    "en": "Drive a car, a forklift or other vehicles"
+  },
+  {
+    "id": "i4",
+    "type": "I",
+    "uk": "Читати наукові статті про нові відкриття",
+    "en": "Read scientific articles about new discoveries"
+  },
+  {
+    "id": "a4",
+    "type": "A",
+    "uk": "Грати музику, співати або виступати на сцені",
+    "en": "Play music, sing or perform on stage"
+  },
+  {
+    "id": "s4",
+    "type": "S",
+    "uk": "Вислуховувати людей і давати поради",
+    "en": "Listen to people and give advice"
+  },
+  {
+    "id": "e4",
+    "type": "E",
+    "uk": "Започаткувати власну справу",
+    "en": "Start my own business"
+  },
+  {
+    "id": "c4",
+    "type": "C",
+    "uk": "Планувати бюджет і рахувати витрати",
+    "en": "Plan a budget and track expenses"
+  },
+  {
+    "id": "r5",
+    "type": "R",
+    "uk": "Працювати на свіжому повітрі й фізично активно",
+    "en": "Work outdoors and be physically active"
+  },
+  {
+    "id": "i5",
+    "type": "I",
+    "uk": "Шукати закономірності в даних",
+    "en": "Look for patterns in data"
+  },
+  {
+    "id": "a5",
+    "type": "A",
+    "uk": "Оформлювати простір: інтер’єр, вітрину, сторінку сайту",
+    "en": "Decorate a space: a room, a shop window, a web page"
+  },
+  {
+    "id": "s5",
+    "type": "S",
+    "uk": "Працювати в команді, де важливі стосунки",
+    "en": "Work in a team where relationships matter"
+  },
+  {
+    "id": "e5",
+    "type": "E",
+    "uk": "Виступати перед аудиторією і презентувати ідеї",
+    "en": "Speak to an audience and pitch ideas"
+  },
+  {
+    "id": "c5",
+    "type": "C",
+    "uk": "Наводити порядок у файлах, базах даних чи на складі",
+    "en": "Keep files, databases or a warehouse in order"
+  }
+]

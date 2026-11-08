@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 
 import Header from './components/Header'
 import CalculatorPage from './pages/CalculatorPage'
+import CareerTestPage from './pages/CareerTestPage'
+import CareerTestResultPage from './pages/CareerTestResultPage'
 import HomePage from './pages/HomePage'
 import SearchPage from './pages/SearchPage'
 import VacancyPage from './pages/VacancyPage'
@@ -18,6 +20,8 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/vacancies/:id" element={<VacancyPage />} />
           <Route path="/calculator" element={<CalculatorPage />} />
+          <Route path="/career-test" element={<CareerTestPage />} />
+          <Route path="/career-test/result" element={<CareerTestResultPage />} />
         </Routes>
       </main>
     </BrowserRouter>

@@ -5,7 +5,8 @@
   "nav": {
     "label": "Main menu",
     "search": "Job search",
-    "calculator": "Salary calculator"
+    "calculator": "Salary calculator",
+    "test": "Career test"
   },
   "home": {
     "title": "Jobs in Europe with real take-home pay",
@@ -160,5 +161,85 @@
     "FI": "Finland",
     "SE": "Sweden",
     "DK": "Denmark"
+  },
+  "careerTest": {
+    "title": "Career test",
+    "intro": "Find out what kind of work may suit you. Rate 30 activities — would you enjoy doing them? There are no right or wrong answers.",
+    "factQuestions_one": "{{count}} question",
+    "factQuestions_other": "{{count}} questions",
+    "factTime": "about 5 minutes",
+    "factResult": "you get your interest type and industries with open vacancies",
+    "start": "Start the test",
+    "method": "Based on psychologist John Holland’s RIASEC model of interests.",
+    "questionOf": "Question {{number}} of {{total}}",
+    "progress": "Test progress",
+    "prompt": "Would you enjoy…",
+    "answers": {
+      "yes": "I’d like it",
+      "maybe": "Not sure",
+      "no": "I wouldn’t like it"
+    },
+    "back": "← Previous question"
+  },
+  "careerResult": {
+    "title": "Your result",
+    "code": "Your Holland code:",
+    "codeHint": "Three letters — your three strongest interest types.",
+    "invalid": "Result not found: the link is incomplete or broken. Take the test to get yours.",
+    "topTypes": "Your main types",
+    "allTypes": "All six types",
+    "industries": "Industries that may suit you",
+    "match": "{{value}}% match",
+    "why": "Fits: {{types}}",
+    "seeVacancies": "See vacancies",
+    "disclaimer": "The test helps you find your bearings; it doesn’t decide for you. Look at vacancies in a few industries and compare.",
+    "again": "Take the test again"
+  },
+  "careerTypes": {
+    "R": {
+      "name": "Realistic",
+      "description": "Likes working with hands, machines and tools, often outdoors. Values concrete, visible results."
+    },
+    "I": {
+      "name": "Investigative",
+      "description": "Likes to figure things out, analyse, ask questions and find answers. Values knowledge and logic."
+    },
+    "A": {
+      "name": "Artistic",
+      "description": "Likes to invent, draw, write and design. Values freedom and self-expression."
+    },
+    "S": {
+      "name": "Social",
+      "description": "Likes to help, teach and take care of people. Values communication and being useful to others."
+    },
+    "E": {
+      "name": "Enterprising",
+      "description": "Likes to persuade, lead, sell and start new things. Values influence, initiative and results."
+    },
+    "C": {
+      "name": "Conventional",
+      "description": "Likes order, accuracy, numbers and clear rules. Values reliability and predictability."
+    }
+  },
+  "industries": {
+    "it": "IT & Software",
+    "engineering": "Engineering",
+    "finance": "Finance & Accounting",
+    "healthcare": "Healthcare",
+    "sales": "Sales",
+    "marketing": "Marketing & PR",
+    "education": "Education",
+    "hospitality": "Hospitality & Catering",
+    "logistics": "Logistics & Warehouse",
+    "construction": "Construction & Trades",
+    "manufacturing": "Manufacturing",
+    "customer-service": "Customer Service",
+    "admin": "Administration & Office",
+    "hr": "Human Resources",
+    "legal": "Legal",
+    "design": "Design & Creative",
+    "science": "Science & Research",
+    "retail": "Retail",
+    "other": "Other"
   }
 }

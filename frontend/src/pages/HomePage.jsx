@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import styles from './HomePage.module.css'
 
 // Главная страница: заголовок, короткое описание и две кнопки.
-// Кнопки ведут на страницу поиска и на тест (тест сделаем на следующих этапах).
+// Кнопки ведут на страницу поиска и на тест профориентации.
 function HomePage() {
   const { t } = useTranslation()
 
@@ -17,9 +17,9 @@ function HomePage() {
         <Link to="/search" className={styles.primaryButton}>
           {t('home.searchJobs')}
         </Link>
-        <a href="/career-test" className={styles.secondaryButton}>
+        <Link to="/career-test" className={styles.secondaryButton}>
           {t('home.takeTest')}
-        </a>
+        </Link>
       </div>
     </section>
   )

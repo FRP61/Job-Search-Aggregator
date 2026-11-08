@@ -28,6 +28,12 @@ function Header() {
         >
           {t('nav.calculator')}
         </NavLink>
+        <NavLink
+          to="/career-test"
+          className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+        >
+          {t('nav.test')}
+        </NavLink>
       </nav>
 
       <LanguageSwitcher />
