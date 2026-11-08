@@ -165,3 +165,65 @@ test('Словакия: необлагаемая часть уменьшаетс
 
 	expect(result.incomeTax).toBeCloseTo(7623.35, 2)
 })
+
+test('Австрия: 42 000 € брутто в год (14 × 3 000 €) → 30 803,41 € на руки', () => {
+	const result = calculateNet(42000, 'AT')
+
+	expect(result.socialContributions).toBeCloseTo(7529.4, 2)
+	expect(result.incomeTax).toBeCloseTo(3667.19, 2)
+	expect(result.net).toBeCloseTo(30803.41, 2)
+})
+
+test('Ирландия: 50 000 € брутто в год → 39 648,43 € на руки', () => {
+	const result = calculateNet(50000, 'IE')
+
+	expect(result.socialContributions).toBeCloseTo(2118.75, 2)
+	expect(result.incomeTax).toBeCloseTo(8232.82, 2)
+	expect(result.net).toBeCloseTo(39648.43, 2)
+})
+
+test('Ирландия: при доходе до 18 304 € PRSI не платится', () => {
+	const result = calculateNet(18000, 'IE')
+
+	expect(result.socialContributions).toBe(0)
+})
+
+test('Кипр: 30 000 € брутто в год → 25 652 € на руки', () => {
+	const result = calculateNet(30000, 'CY')
+
+	expect(result.socialContributions).toBeCloseTo(3435, 2)
+	expect(result.incomeTax).toBeCloseTo(913, 2)
+	expect(result.net).toBeCloseTo(25652, 2)
+})
+
+test('Мальта: 30 000 € брутто в год → 22 991,64 € на руки', () => {
+	const result = calculateNet(30000, 'MT')
+
+	expect(result.socialContributions).toBeCloseTo(2908.36, 2)
+	expect(result.incomeTax).toBeCloseTo(4100, 2)
+	expect(result.net).toBeCloseTo(22991.64, 2)
+})
+
+test('Греция: 18 200 € брутто в год (14 × 1 300 €) → 14 414,99 € на руки', () => {
+	const result = calculateNet(18200, 'GR')
+
+	expect(result.socialContributions).toBeCloseTo(2433.34, 2)
+	expect(result.incomeTax).toBeCloseTo(1351.67, 2)
+	expect(result.net).toBeCloseTo(14414.99, 2)
+})
+
+test('Хорватия: 21 600 € брутто в год (1 800 €/мес, Загреб) → 14 961,60 € на руки', () => {
+	const result = calculateNet(21600, 'HR')
+
+	expect(result.socialContributions).toBeCloseTo(4320, 2)
+	expect(result.incomeTax).toBeCloseTo(2318.4, 2)
+	expect(result.net).toBeCloseTo(14961.6, 2)
+})
+
+test('Словения: 24 000 € брутто в год → 15 600,76 € на руки', () => {
+	const result = calculateNet(24000, 'SI')
+
+	expect(result.socialContributions).toBeCloseTo(6016.32, 2)
+	expect(result.incomeTax).toBeCloseTo(2382.92, 2)
+	expect(result.net).toBeCloseTo(15600.76, 2)
+})

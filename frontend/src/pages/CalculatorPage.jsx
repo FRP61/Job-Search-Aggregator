@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { calculateNet, calculateNetLocal, currencyOf, SUPPORTED_COUNTRIES } from '../salary/calculateNet'
+import {
+  calculateNet,
+  calculateNetLocal,
+  currencyOf,
+  paymentsPerYearOf,
+  SUPPORTED_COUNTRIES,
+} from '../salary/calculateNet'
 import { eurRate, EXCHANGE_RATES_DATE } from '../salary/exchangeRates'
 import { currencySymbol, formatDate, formatMoney, formatPercent, formatRate } from '../utils/format'
 import styles from './CalculatorPage.module.css'
@@ -16,9 +22,9 @@ function parseAmount(text) {
 // Страна, открытая по умолчанию
 const DEFAULT_COUNTRY = 'EE'
 
-// Разделить годовую сумму на месяцы, с точностью до цента
-function perMonth(annualAmount) {
-  return Math.round((annualAmount / 12) * 100) / 100
+// Разделить годовую сумму на выплаты (обычно 12, в Австрии и Греции 14), с точностью до цента
+function perPayment(annualAmount, payments = 12) {
+  return Math.round((annualAmount / payments) * 100) / 100
 }
 
 // Группа радиокнопок, оформленная как переключатель (период, валюта)
@@ -76,7 +82,9 @@ function CalculatorPage() {
   // Расчёт делаем сразу при каждом изменении: он мгновенный.
   // Сумма в евро → calculateNet, в валюте страны → calculateNetLocal
   const amount = parseAmount(amountText)
-  const grossAnnual = amount === null ? null : period === 'month' ? amount * 12 : amount
+  // сколько раз в год платят зарплату: «на місяць» умножаем на это число
+  const payments = paymentsPerYearOf(country)
+  const grossAnnual = amount === null ? null : period === 'month' ? amount * payments : amount
   const calculate = currency === 'EUR' ? calculateNet : calculateNetLocal
   const result = grossAnnual === null ? null : calculate(grossAnnual, country)
 
@@ -84,7 +92,7 @@ function CalculatorPage() {
 
   // Если считали в валюте страны — сколько это в евро на руки за месяц, для сравнения
   const netInEurPerMonth =
-    result && result.currency !== 'EUR' ? perMonth(result.net / eurRate(result.currency)) : null
+    result && result.currency !== 'EUR' ? perPayment(result.net / eurRate(result.currency), payments) : null
 
   // Строки таблицы результата: подпись и значение за год
   const rows = result && [
@@ -169,7 +177,7 @@ function CalculatorPage() {
               {rows.map((row) => (
                 <tr key={row.key} className={row.key === 'net' ? styles.netRow : undefined}>
                   <th scope="row">{row.label}</th>
-                  <td>{money(perMonth(row.annual))}</td>
+                  <td>{money(perPayment(row.annual, payments))}</td>
                   <td>{money(row.annual)}</td>
                 </tr>
               ))}
@@ -186,6 +194,7 @@ function CalculatorPage() {
             {t('calculator.effectiveRate', { rate: formatPercent(result.effectiveRate, language) })}
           </p>
           <p className={styles.note}>
+            {payments !== 12 && `${t('calculator.paymentsNote', { count: payments })} `}
             {t('calculator.assumptions')}{' '}
             {t(`calculator.notes.${country}`, {
               // для стран не в евро в заметке пишем курс и его дату

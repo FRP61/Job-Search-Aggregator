@@ -1,13 +1,20 @@
 import { eurRate } from './exchangeRates'
+import { austria } from './rules/at'
 import { bulgaria } from './rules/bg'
+import { cyprus } from './rules/cy'
 import { czechia } from './rules/cz'
 import { germany } from './rules/de'
 import { estonia } from './rules/ee'
+import { greece } from './rules/gr'
+import { croatia } from './rules/hr'
 import { hungary } from './rules/hu'
+import { ireland } from './rules/ie'
 import { lithuania } from './rules/lt'
 import { latvia } from './rules/lv'
+import { malta } from './rules/mt'
 import { poland } from './rules/pl'
 import { romania } from './rules/ro'
+import { slovenia } from './rules/si'
 import { slovakia } from './rules/sk'
 
 // Налоговые правила по коду страны. Новую страну добавляем сюда.
@@ -22,6 +29,13 @@ const RULES_BY_COUNTRY = {
   HU: hungary,
   CZ: czechia,
   SK: slovakia,
+  AT: austria,
+  IE: ireland,
+  CY: cyprus,
+  MT: malta,
+  GR: greece,
+  HR: croatia,
+  SI: slovenia,
 }
 
 // Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', ...]
@@ -29,6 +43,11 @@ export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
 
 function rulesFor(countryCode) {
   return RULES_BY_COUNTRY[countryCode?.toUpperCase()] ?? null
+}
+
+// Сколько раз в год платят зарплату: обычно 12, в Австрии и Греции — 14
+export function paymentsPerYearOf(countryCode) {
+  return rulesFor(countryCode)?.paymentsPerYear ?? 12
 }
 
 // В какой валюте страна считает налоги: 'EUR', 'PLN'...; null, если страны нет
@@ -93,12 +112,21 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   // 1. Взносы работника
   let socialContributions = 0
   let contributionsReducingTax = 0
+  // суммы взносов по их id — пригодятся формуле налога (Австрия)
+  const contributionsById = {}
   for (const contribution of rules.contributions) {
     // Обычно взнос считается от брутто. Польская медстраховка — от «брутто минус взносы выше».
-    const fullBase = contribution.afterPreviousContributions ? grossAnnual - socialContributions : grossAnnual
+    // shareOfGross — взнос только с части зарплаты (австрийские 13-я и 14-я зарплаты = 2/14)
+    const fromGross = grossAnnual * (contribution.shareOfGross ?? 1)
+    const fullBase = contribution.afterPreviousContributions ? grossAnnual - socialContributions : fromGross
     // capBase — потолок: взнос берётся только с этой части (если потолок есть)
     const base = Math.min(fullBase, contribution.capBase ?? Infinity)
-    const amount = roundToCents(base * contribution.rate)
+    let amount = contribution.fixedAnnual ?? roundToCents(base * contribution.rate)
+    // exemptUpTo — при зарплате до этой суммы взнос не платится вообще (ирландский PRSI)
+    if (contribution.exemptUpTo && grossAnnual <= contribution.exemptUpTo) {
+      amount = 0
+    }
+    contributionsById[contribution.id] = amount
     socialContributions += amount
     if (contribution.reducesTaxBase) {
       // Обычно для налога засчитывается весь взнос. Немецкая медстраховка — по своей,
@@ -118,7 +146,7 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   const { formula, brackets, taxCredit, solidarity } = rules.incomeTax
   // формула получает и брутто — в некоторых странах скидки с налога зависят от зарплаты
   const taxBeforeCredit = formula
-    ? formula(taxableIncome, { gross: grossAnnual, socialContributions })
+    ? formula(taxableIncome, { gross: grossAnnual, socialContributions, contributionsById })
     : taxByBrackets(taxableIncome, brackets)
   const tax = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
   const incomeTax = roundToCents(tax + solidaritySurcharge(tax, solidarity))
