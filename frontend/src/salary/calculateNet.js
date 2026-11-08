@@ -1,4 +1,5 @@
 import { eurRate } from './exchangeRates'
+import { germany } from './rules/de'
 import { estonia } from './rules/ee'
 import { lithuania } from './rules/lt'
 import { latvia } from './rules/lv'
@@ -10,9 +11,10 @@ const RULES_BY_COUNTRY = {
   LV: latvia,
   LT: lithuania,
   PL: poland,
+  DE: germany,
 }
 
-// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', 'LT', 'PL']
+// Коды стран, для которых калькулятор умеет считать: ['EE', 'LV', 'LT', 'PL', 'DE']
 export const SUPPORTED_COUNTRIES = Object.keys(RULES_BY_COUNTRY)
 
 function rulesFor(countryCode) {
@@ -59,6 +61,15 @@ function annualAllowance(allowance, grossAnnual) {
   return Math.max(0, allowance.max - reduction)
 }
 
+// Надбавка к налогу (немецкий Soli): rate от налога, но только если налог больше
+// exemptionLimit, и не больше phaseInRate от превышения — так она вводится плавно
+function solidaritySurcharge(tax, solidarity) {
+  if (!solidarity || tax <= solidarity.exemptionLimit) {
+    return 0
+  }
+  return Math.min(tax * solidarity.rate, (tax - solidarity.exemptionLimit) * solidarity.phaseInRate)
+}
+
 // Сколько останется на руки из годовой зарплаты брутто В ВАЛЮТЕ СТРАНЫ
 // (для Польши — в злотых). Возвращает разбивку или null, если для страны нет правил.
 export function calculateNetLocal(grossAnnual, countryCode) {
@@ -78,7 +89,9 @@ export function calculateNetLocal(grossAnnual, countryCode) {
     const amount = roundToCents(base * contribution.rate)
     socialContributions += amount
     if (contribution.reducesTaxBase) {
-      contributionsReducingTax += amount
+      // Обычно для налога засчитывается весь взнос. Немецкая медстраховка — по своей,
+      // меньшей ставке (taxBaseRate)
+      contributionsReducingTax += contribution.taxBaseRate ? roundToCents(base * contribution.taxBaseRate) : amount
     }
   }
 
@@ -86,9 +99,13 @@ export function calculateNetLocal(grossAnnual, countryCode) {
   const allowance = annualAllowance(rules.incomeTax.allowance, grossAnnual)
   const taxableIncome = Math.max(0, grossAnnual - contributionsReducingTax - allowance)
 
-  // 3. Подоходный налог по ступеням, минус скидка с налога (если она есть, как в Польше)
-  const taxBeforeCredit = taxByBrackets(taxableIncome, rules.incomeTax.brackets)
-  const incomeTax = roundToCents(Math.max(0, taxBeforeCredit - (rules.incomeTax.taxCredit ?? 0)))
+  // 3. Подоходный налог: по формуле (Германия) или по ступеням,
+  //    минус скидка с налога (если она есть, как в Польше),
+  //    плюс надбавка солидарности (если она есть, как в Германии)
+  const { formula, brackets, taxCredit, solidarity } = rules.incomeTax
+  const taxBeforeCredit = formula ? formula(taxableIncome) : taxByBrackets(taxableIncome, brackets)
+  const tax = Math.max(0, taxBeforeCredit - (taxCredit ?? 0))
+  const incomeTax = roundToCents(tax + solidaritySurcharge(tax, solidarity))
 
   // 4. На руки и доля налогов в процентах (один знак после запятой)
   const net = roundToCents(grossAnnual - socialContributions - incomeTax)

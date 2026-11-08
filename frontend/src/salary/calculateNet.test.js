@@ -85,3 +85,25 @@ test('Польша: 24 000 € переводятся в злотые по ку�
 
 	expect(result.net).toBeCloseTo(17262.12, 1)
 })
+test('Германия: 60 000 € брутто в год (5 000 €/мес) → 37 561 € на руки', () => {
+	const result = calculateNet(60000, 'DE')
+
+	expect(result.socialContributions).toBeCloseTo(13050, 2)
+	expect(result.incomeTax).toBeCloseTo(9389, 2)
+	expect(result.net).toBeCloseTo(37561, 2)
+	expect(result.effectiveRate).toBeCloseTo(37.4, 1)
+})
+
+test('Германия: при высокой зарплате потолки взносов и надбавка Soli', () => {
+	const result = calculateNet(120000, 'DE')
+
+	expect(result.socialContributions).toBeCloseTo(18525.53, 2)
+	expect(result.incomeTax).toBeCloseTo(32930.92, 2)
+})
+
+test('Германия: доход ниже необлагаемого минимума → подоходного налога нет', () => {
+	const result = calculateNet(12000, 'DE')
+
+	expect(result.incomeTax).toBe(0)
+	expect(result.net).toBeCloseTo(9390, 2)
+})
