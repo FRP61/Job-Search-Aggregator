@@ -323,3 +323,19 @@ test('Дания: 600 000 kr брутто в год → 383 638,75 kr на ру�
 	expect(result.incomeTax).toBeCloseTo(167268.29, 2)
 	expect(result.net).toBeCloseTo(383638.75, 2)
 })
+
+test('Украина: 30 000 грн брутто в месяц → 23 100 грн на руки (ПДФО 18% + военный сбор 5%)', () => {
+	const result = calculateNetLocal(30000 * 12, 'UA')
+
+	expect(result.currency).toBe('UAH')
+	expect(result.socialContributions).toBe(0)
+	expect(result.incomeTax).toBeCloseTo(82800, 2)
+	expect(result.net).toBeCloseTo(277200, 2)
+	expect(result.effectiveRate).toBe(23)
+})
+
+test('Украина в евро: 1 000 € в месяц → 770 € на руки по курсу НБУ', () => {
+	const result = calculateNet(12000, 'UA')
+
+	expect(result.net).toBeCloseTo(9240, 2)
+})

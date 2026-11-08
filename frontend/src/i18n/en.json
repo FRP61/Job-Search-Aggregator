@@ -129,7 +129,8 @@
       "PT": "Portugal: 11% social security; 12.2–48% IRS (reduced 2026 rates), €4,587.09 specific deduction; without IRS Jovem or expense deductions.",
       "FI": "Finland: 7.3% pension, 0.89% unemployment, 0.88% sickness; 12.64–37.5% state tax and 7.57% municipal (average), 1.10% health care contribution and Yle tax included in the tax line; no church tax.",
       "SE": "Sweden: taxes are calculated in kronor at the ECB rate of {{date}} (€1 = {{rate}} kr); 32.38% municipal tax (average), 20% state tax above 643,000 kr; the 7% pension fee is refunded as a tax reduction; without burial and church fees.",
-      "DK": "Denmark: taxes are calculated in kroner at the ECB rate of {{date}} (€1 = {{rate}} kr); 8% AM-bidrag and ATP; 25% municipal tax (average) and 12.01% state tax (+7.5% above 641,200 kr); no church tax."
+      "DK": "Denmark: taxes are calculated in kroner at the ECB rate of {{date}} (€1 = {{rate}} kr); 8% AM-bidrag and ATP; 25% municipal tax (average) and 12.01% state tax (+7.5% above 641,200 kr); no church tax.",
+      "UA": "Ukraine: taxes are calculated in hryvnias at the NBU rate of {{date}} (€1 = {{rate}} ₴); 18% personal income tax and 5% military levy are withheld (both in the tax line); the 22% social contribution is paid by the employer on top."
     },
     "currency": "Currency",
     "netInEur": "≈ {{amount}} take-home per month",
@@ -162,7 +163,8 @@
     "PT": "Portugal",
     "FI": "Finland",
     "SE": "Sweden",
-    "DK": "Denmark"
+    "DK": "Denmark",
+    "UA": "Ukraine"
   },
   "careerTest": {
     "title": "Career test",
