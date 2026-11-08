@@ -1,15 +1,32 @@
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 
+import { useCostOfLiving } from '../api/useCostOfLiving'
 import { hollandCode, rankTypes, recommendIndustries, scoresFromQuery } from '../careerTest/riasec'
+import IndustryVacancies from '../components/IndustryVacancies'
+import { SUPPORTED_COUNTRIES } from '../salary/calculateNet'
 import styles from './CareerTestResultPage.module.css'
 
 // Страница результата теста: /career-test/result?r=60&i=80&a=20&s=40&e=70&c=30.
 // Всё нужное — в адресе, поэтому результатом можно поделиться ссылкой
 function CareerTestResultPage() {
-  const { t } = useTranslation()
-  const [searchParams] = useSearchParams()
+  const { t, i18n } = useTranslation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const scores = scoresFromQuery(searchParams)
+  const costOfLiving = useCostOfLiving()
+
+  // Страна для подбора вакансий — тоже в адресе (&country=PL), рядом с баллами
+  const country = SUPPORTED_COUNTRIES.includes(searchParams.get('country')) ? searchParams.get('country') : ''
+  const sortedCountries = [...SUPPORTED_COUNTRIES].sort((a, b) =>
+    t(`countries.${a}`).localeCompare(t(`countries.${b}`), i18n.language),
+  )
+
+  function chooseCountry(code) {
+    const params = new URLSearchParams(searchParams)
+    if (code) params.set('country', code)
+    else params.delete('country')
+    setSearchParams(params, { replace: true })
+  }
 
   if (!scores) {
     return (
@@ -66,6 +83,17 @@ function CareerTestResultPage() {
       </ul>
 
       <h2 className={styles.sectionTitle}>{t('careerResult.industries')}</h2>
+      <p className={styles.countryChoice}>
+        <label htmlFor="result-country">{t('careerResult.country')}</label>{' '}
+        <select id="result-country" value={country} onChange={(event) => chooseCountry(event.target.value)}>
+          <option value="">{t('search.allCountries')}</option>
+          {sortedCountries.map((code) => (
+            <option key={code} value={code}>
+              {t(`countries.${code}`)}
+            </option>
+          ))}
+        </select>
+      </p>
       <ol className={styles.industries}>
         {industries.map((industry) => (
           <li key={industry.slug} className={styles.industry}>
@@ -78,9 +106,7 @@ function CareerTestResultPage() {
                 types: industry.types.map((type) => t(`careerTypes.${type}.name`)).join(', '),
               })}
             </p>
-            <Link to={`/search?industry=${industry.slug}`} className={styles.secondaryButton}>
-              {t('careerResult.seeVacancies')}
-            </Link>
+            <IndustryVacancies industry={industry.slug} country={country} costOfLiving={costOfLiving.byCountry} />
           </li>
         ))}
       </ol>
