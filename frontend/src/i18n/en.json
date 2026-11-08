@@ -48,7 +48,11 @@
       "MT": "Malta: single rates 0–35%; 10% social security, at most €55.93 a week; without statutory bonuses and COLA.",
       "GR": "Greece: 13.37% EFKA; 9–44% income tax minus a credit of up to €777; no children, over 25.",
       "HR": "Croatia: 20% pension contribution, €600 monthly personal allowance, Zagreb rates of 23% and 33% (above €5,000 of monthly base); health insurance is paid by the employer.",
-      "SI": "Slovenia: 23.1% contributions (incl. 1% long-term care) plus a fixed €39.36 monthly health contribution; €5,551.93 general allowance; 16–50% tax; without the extra allowance for low pay."
+      "SI": "Slovenia: 23.1% contributions (incl. 1% long-term care) plus a fixed €39.36 monthly health contribution; €5,551.93 general allowance; 16–50% tax; without the extra allowance for low pay.",
+      "NL": "Netherlands: employees pay no separate social contributions — they are built into the 35.75–49.5% tax rates; minus the general and labour tax credits; no employer pension fund, no 30% expat ruling.",
+      "BE": "Belgium: 13.07% social security plus the special social security contribution; 30% employee expenses (up to €5,930); 25–50% tax with a reduction for the €11,550 tax-free amount; 7% municipal surcharge.",
+      "LU": "Luxembourg: tax class 1; 3.05% health, 8.5% pension, 1.4% care insurance; 0–42% tax (2025 scale) plus 7% employment fund surcharge; without the employee tax credit (CIS).",
+      "FR": "France: non-executive private-sector employee, 1 tax share; ~21% contributions (pension, AGIRC-ARRCO, CSG/CRDS) without mutuelle; 0–45% tax after the 10% deduction and the décote."
     },
     "currency": "Currency",
     "netInEur": "≈ {{amount}} take-home per month",
@@ -71,6 +75,10 @@
     "MT": "Malta",
     "GR": "Greece",
     "HR": "Croatia",
-    "SI": "Slovenia"
+    "SI": "Slovenia",
+    "NL": "Netherlands",
+    "BE": "Belgium",
+    "LU": "Luxembourg",
+    "FR": "France"
   }
 }
