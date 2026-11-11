@@ -114,13 +114,16 @@ flowchart LR
 Полная история — в ветках: `feature/backend-setup` → `feature/cost-of-living` → `feature/job-integrations`
 и `feature/frontend-setup` → `feature/salary-calculator` → … → `feature/polish` → `full-site`.
 
-## Автор
+## Кто чем занимался
 
-**[SatohyNo](https://github.com/SatohyNo)** — весь проект: идея, требования, архитектура, backend и сбор
-данных, frontend, налоговые правила, проверка на реальных данных и документация.
+| Кто | Роль | Что сделал |
+|---|---|---|
+| [SatohyNo](https://github.com/SatohyNo) | Backend | API на FastAPI, схема БД и миграции, адаптеры для 7 сайтов вакансий, удаление дублей, определение отрасли (ISCO/ESCO), нормализация зарплат по курсам ЕЦБ, индекс стоимости жизни Eurostat, полный прогон на реальных данных и отчёт о проверке, документация backend и CI |
+| [skinnymaskboieshkere](https://github.com/skinnymaskboieshkere) | Frontend | Сайт на React: поиск, карточки и страницы вакансий, калькулятор брутто → на руки для 27 стран ЕС и Украины, тест профориентации (RIASEC) с рекомендациями, интерфейс UA/EN, доступность, Docker/nginx, тесты frontend и CI |
 
 Код написан с помощью ИИ-ассистента (Claude). Требования, архитектурные решения, ревью каждого изменения и
-проверки на реальных данных — мои; поэтому в части коммитов есть строки `Co-Authored-By`.
+проверки на реальных данных — за командой; поэтому в коммитах есть строки `Co-Authored-By`, а коммиты
+frontend подписаны ассистентом.
 
 ## Запуск
 

@@ -114,13 +114,16 @@ The work went in feature branches, one area at a time, each with its own tests.
 The full history is in the branches: `feature/backend-setup` → `feature/cost-of-living` → `feature/job-integrations`
 and `feature/frontend-setup` → `feature/salary-calculator` → … → `feature/polish` → `full-site`.
 
-## Author
+## Team
 
-**[SatohyNo](https://github.com/SatohyNo)** — the whole project: idea, requirements, architecture,
-backend and data pipeline, frontend, tax rules, testing on real data and documentation.
+| Who | Role | What they did |
+|---|---|---|
+| [SatohyNo](https://github.com/SatohyNo) | Backend | FastAPI API, database schema and migrations, adapters for 7 job boards, deduplication, industry detection (ISCO/ESCO), salary normalisation with ECB rates, Eurostat cost-of-living index, full run on real data and the verification report, backend docs and CI |
+| [skinnymaskboieshkere](https://github.com/skinnymaskboieshkere) | Frontend | React site: search, vacancy cards and pages, gross → net calculator for 27 EU countries + Ukraine, career test (RIASEC) with recommendations, UA/EN interface, accessibility, Docker/nginx, frontend tests and CI |
 
 The code was written with an AI coding assistant (Claude). Requirements, design decisions, review of every
-change and checks on real data are mine; that's why some commits carry `Co-Authored-By` lines.
+change and checks on real data are by the team; that's why commits carry `Co-Authored-By` lines, and the
+frontend commits are signed by the assistant.
 
 ## Run it
 
