@@ -8,12 +8,11 @@ the `jobs` password in `docker-compose.yml`, `.env.example` and CI is only for t
 ## Required
 
 - [ ] **Choose a license** and add `LICENSE`. Without one, others can't legally use the code, even if it's public.
-- [ ] **Agree with your teammate:** both authors must accept the publication and the license.
 - [ ] **Check each source's terms of use:** EURES, Bundesagentur, cv.ee/lv/lt, justjoin.it, JobTech, ESCO, ECB, Eurostat. Especially commercial use and republishing vacancy texts.
 - [ ] **Bundesagentur:** the `jobboerse-jobsuche` key in `app/integrations/bundesagentur.py` is shared, but we haven't seen official permission for this access. Check it or remove the source.
 - [ ] **Search for secrets again** across the whole history, since new commits will appear after this check: `gitleaks detect` or similar.
 - [ ] **Review the commit history and decide whether to keep it.** One option is a clean start: a new repository without the old history.
-- [ ] **State the authorship:** who did what. The history contains `Co-Authored-By` lines, and a rewrite is the only way to remove them.
+- [x] **State the authorship:** who did what. The history contains `Co-Authored-By` lines, and a rewrite is the only way to remove them.
 
 ## Merging the frontend
 
@@ -25,30 +24,20 @@ the `jobs` password in `docker-compose.yml`, `.env.example` and CI is only for t
 
 ## Copyright and license
 
-- [ ] Copyright exists automatically, no registration is needed. Add a line with both authors: `Copyright (c) 2026 Name and Name`.
-- [ ] Choose together: MIT (others may do almost anything), AGPL-3.0 (a service built on it must open its code), or no license with "All rights reserved" (others may only view it).
+- [ ] Copyright exists automatically, no registration is needed. Add a line with the author: `Copyright (c) 2026 SatohyNo`.
+- [ ] Choose: MIT (others may do almost anything), AGPL-3.0 (a service built on it must open its code), or no license with "All rights reserved" (others may only view it).
 - [ ] Remember the limits: vacancy data belongs to the boards and employers, and protection of AI-generated code is weaker and depends on the country. For a commercial use, ask a lawyer.
 
 ## Who did what
 
-Add this section to the README. Keeping the history lets GitHub's Contributors tab show each person's work.
-
-```markdown
-## Team
-
-| Who | Role | What they did |
-|---|---|---|
-| [SatohyNo](https://github.com/SatohyNo) | Backend | API, job sources, deduplication, data pipeline |
-| [Teammate](https://github.com/teammate) | Frontend | UI, search pages |
-
-Backend built with an AI coding assistant: requirements, decisions, review of every change and testing on real data by SatohyNo.
-```
+Done: the **Author** section in the [README](../README.md). The whole project is by SatohyNo, written with an AI coding assistant.
 
 ## README for the public version
 
-- [ ] Add a link to the live version, screenshots and a frontend description.
-- [ ] Update "Status", "Limitations" and "Next steps".
-- [ ] Add a CI badge.
+- [ ] Add a link to the live version.
+- [x] Screenshots and a frontend description.
+- [x] Update "Status", "Limitations" and "Next steps".
+- [x] Add a CI badge.
 
 ## GitHub settings
 
